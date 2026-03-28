@@ -53,7 +53,8 @@ User=root
 ExecStart=/usr/local/bin/ollama serve
 Environment="OLLAMA_HOST=0.0.0.0:11434"
 Environment="OLLAMA_MAX_LOADED_MODELS=1"
-Environment="OLLAMA_KEEP_ALIVE=1h"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_KEEP_ALIVE=24h"
 Restart=always
 RestartSec=3
 

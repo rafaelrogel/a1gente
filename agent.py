@@ -212,10 +212,13 @@ async def call_ollama(messages: List[Dict[str, Any]], tools: Optional[List[Dict[
     }
     if tools:
         payload["tools"] = tools
+        # Limita o contexto para 4096 tokens para acelerar o processamento em VPS lentas
+        payload["options"] = {"num_ctx": 4096}
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=payload, timeout=120.0) # Aumentado para 120s para VPS lenta
+            # Aumentado para 300s (5 minutos) para evitar ReadTimeout em VPS lentas
+            response = await client.post(url, json=payload, timeout=300.0) 
             if response.status_code != 200:
                 logger.error(f"Ollama retornou erro {response.status_code}: {response.text}")
                 return {"message": {"role": "assistant", "content": f"Erro do Ollama ({response.status_code}): {response.text}"}}
