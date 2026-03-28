@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from dotenv import load_dotenv
+from duckduckgo_search import DDGS
 
 # Configurações de Log
 logging.basicConfig(level=logging.INFO)
@@ -15,30 +16,38 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# --- CONFIGURAÇÕES DO USUÁRIO ---
-# TODO: Coloque seu SLACK_BOT_TOKEN e SLACK_APP_TOKEN no arquivo .env ou como variáveis de ambiente
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-seu-token-aqui")
-SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN", "xapp-seu-token-aqui")
-# TODO: Coloque o ID do usuário do bot (ex: U0123456789)
-SLACK_BOT_USER_ID = os.environ.get("SLACK_BOT_USER_ID", "UXXXXXXXXXX")
-# TODO: URL do Ollama (ajuste se necessário)
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-# TODO: Modelo Ollama (phi3, qwen2.5:3b ou llama3.2:3b)
-MODEL_NAME = os.environ.get("MODEL_NAME", "llama3.2:3b")
+# --- CONFIGURAÇÕES ---
+# Carrega variáveis do arquivo .env
+load_dotenv()
 
-# --- MEMÓRIA SIMPLES ---
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
+SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
+SLACK_BOT_USER_ID = os.environ.get("SLACK_BOT_USER_ID")
+# Suporte a OLLAMA_URL ou OLLAMA_BASE_URL
+OLLAMA_URL = os.environ.get("OLLAMA_URL") or os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
+# Suporte a MODEL_NAME ou MODEL
+MODEL_NAME = os.environ.get("MODEL_NAME") or os.environ.get("MODEL") or "llama3.2:3b"
+
+# --- MEMÓRIA ---
 # Dicionário para armazenar o histórico de mensagens por canal/usuário
-# Formato: { "channel_id": [ {"role": "user/assistant", "content": "..."} ] }
-memory: Dict[str, List[Dict[str, str]]] = {}
+memory: Dict[str, List[Dict[str, Any]]] = {}
 MAX_MEMORY = 10
 
-def update_memory(channel_id: str, role: str, content: str):
+def update_memory(channel_id: str, role: str, content: str, tool_calls: Optional[List] = None):
     if channel_id not in memory:
-        memory[channel_id] = []
-    memory[channel_id].append({"role": role, "content": content})
+        memory[channel_id] = [{"role": "system", "content": "Você é um assistente prestativo integrado ao Slack. Use as ferramentas disponíveis quando necessário."}]
+    
+    msg = {"role": role, "content": content}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+        
+    memory[channel_id].append(msg)
+    
+    # Mantém a primeira mensagem (System) e as últimas N-1
     if len(memory[channel_id]) > MAX_MEMORY:
-        # Mantém a primeira mensagem (System) se houver, e as últimas N-1
-        memory[channel_id] = memory[channel_id][-MAX_MEMORY:]
+        system_msg = memory[channel_id][0]
+        recent_msgs = memory[channel_id][-(MAX_MEMORY-1):]
+        memory[channel_id] = [system_msg] + recent_msgs
 
 # --- FERRAMENTAS (TOOLS) ---
 
@@ -51,6 +60,23 @@ async def write_blog_post(title: str, content: str) -> str:
     blog_md = f"# {title}\n\n{content}\n\n---\n*Post gerado automaticamente pelo Agente AI*"
     # Aqui poderíamos salvar num arquivo, mas vamos retornar o texto
     return f"Blog post gerado:\n\n{blog_md}"
+
+async def web_search(query: str) -> str:
+    """Pesquisa no DuckDuckGo e retorna os resultados principais com links."""
+    try:
+        results_text = []
+        with DDGS() as ddgs:
+            results = ddgs.text(query, max_results=5)
+            for r in results:
+                results_text.append(f"- {r['title']}: {r['href']}\n  {r['body']}")
+        
+        if not results_text:
+            return "Nenhum resultado encontrado para a pesquisa."
+        
+        return "\n\n".join(results_text)
+    except Exception as e:
+        logger.error(f"Erro na pesquisa DuckDuckGo: {e}")
+        return f"Erro ao pesquisar: {str(e)}"
 
 async def fetch_webpage(url: str) -> str:
     """Faz GET num site e retorna o texto limpo."""
@@ -78,9 +104,11 @@ async def summarize_text(text: str) -> str:
 async def reply_to_slack(channel: str, message: str) -> str:
     """Envia mensagem de volta ao Slack (usando o token do bot)."""
     try:
-        await app.client.chat_postMessage(channel=channel, text=message)
+        # Garante que 'text' seja enviado para evitar avisos no SDK do Slack
+        await app.client.chat_postMessage(channel=channel, text=str(message))
         return "Mensagem enviada com sucesso ao Slack."
     except Exception as e:
+        logger.error(f"Erro ao enviar mensagem ao Slack: {e}")
         return f"Erro ao enviar mensagem ao Slack: {str(e)}"
 
 # Definição das tools para o Ollama
@@ -156,12 +184,26 @@ TOOLS = [
                 "required": ["channel", "message"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Pesquisa na internet por informações em tempo real usando DuckDuckGo.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "O termo de pesquisa."}
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 
 # --- INTEGRAÇÃO OLLAMA ---
 
-async def call_ollama(messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+async def call_ollama(messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     url = f"{OLLAMA_URL}/api/chat"
     payload = {
         "model": MODEL_NAME,
@@ -173,33 +215,36 @@ async def call_ollama(messages: List[Dict[str, str]], tools: Optional[List[Dict[
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=payload, timeout=60.0)
-            response.raise_for_status()
+            response = await client.post(url, json=payload, timeout=120.0) # Aumentado para 120s para VPS lenta
+            if response.status_code != 200:
+                logger.error(f"Ollama retornou erro {response.status_code}: {response.text}")
+                return {"message": {"role": "assistant", "content": f"Erro do Ollama ({response.status_code}): {response.text}"}}
+            
             return response.json()
         except Exception as e:
-            logger.error(f"Erro ao chamar Ollama: {e}")
-            return {"message": {"role": "assistant", "content": f"Erro na API do Ollama: {str(e)}"}}
+            logger.error(f"Erro ao chamar Ollama: {type(e).__name__}: {e}")
+            return {"message": {"role": "assistant", "content": f"Erro de conexão com Ollama: {str(e)}"}}
 
 # --- LÓGICA DO AGENTE ---
 
 async def run_agent(channel_id: str, user_text: str):
-    # Inicializa ou recupera memória
+    # Inicializa memória se necessário
     if channel_id not in memory:
-        memory[channel_id] = [{"role": "system", "content": "Você é um assistente prestativo integrado ao Slack. Use as ferramentas disponíveis quando necessário."}]
+        update_memory(channel_id, "system", "Você é um assistente prestativo integrado ao Slack.")
     
     update_memory(channel_id, "user", user_text)
     
     # Loop de raciocínio (pensamento + tool use)
-    for _ in range(5): # Limite de 5 iterações para evitar loops infinitos
+    for i in range(5):
+        logger.info(f"Rodando iteração {i+1} do agente para o canal {channel_id}")
         response_data = await call_ollama(memory[channel_id], tools=TOOLS)
         message = response_data.get("message", {})
         
-        # Adiciona resposta do assistente à memória
+        # Adiciona resposta do assistente (com ou sem tool_calls) à memória
         memory[channel_id].append(message)
         
         tool_calls = message.get("tool_calls")
         if not tool_calls:
-            # Se não houver chamadas de ferramenta, para o loop e envia a resposta final se houver conteúdo
             if message.get("content"):
                 await app.client.chat_postMessage(channel=channel_id, text=message["content"])
             break
@@ -209,22 +254,29 @@ async def run_agent(channel_id: str, user_text: str):
             function_name = tool_call["function"]["name"]
             arguments = tool_call["function"]["arguments"]
             
-            logger.info(f"Chamando tool: {function_name} com {arguments}")
+            logger.info(f"Executando ferramenta: {function_name}")
             
             result = ""
-            if function_name == "read_slack_message":
-                result = await read_slack_message(**arguments)
-            elif function_name == "write_blog_post":
-                result = await write_blog_post(**arguments)
-            elif function_name == "fetch_webpage":
-                result = await fetch_webpage(**arguments)
-            elif function_name == "summarize_text":
-                result = await summarize_text(**arguments)
-            elif function_name == "reply_to_slack":
-                result = await reply_to_slack(**arguments)
+            try:
+                if function_name == "read_slack_message":
+                    result = await read_slack_message(**arguments)
+                elif function_name == "write_blog_post":
+                    result = await write_blog_post(**arguments)
+                elif function_name == "fetch_webpage":
+                    result = await fetch_webpage(**arguments)
+                elif function_name == "summarize_text":
+                    result = await summarize_text(**arguments)
+                elif function_name == "reply_to_slack":
+                    result = await reply_to_slack(**arguments)
+                elif function_name == "web_search":
+                    result = await web_search(**arguments)
+                else:
+                    result = f"Erro: Ferramenta {function_name} não encontrada."
+            except Exception as e:
+                result = f"Erro ao executar {function_name}: {str(e)}"
+                logger.error(result)
             
-            # Adiciona o resultado da tool à memória (o Ollama espera o papel 'tool' ou 'assistant' dependendo da versão, 
-            # na API de chat atual do Ollama enviamos uma mensagem com role 'tool')
+            # Adiciona o resultado da tool à memória
             memory[channel_id].append({
                 "role": "tool",
                 "content": str(result)

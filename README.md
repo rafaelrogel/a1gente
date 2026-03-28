@@ -1,20 +1,41 @@
 # AI Slack Agent with Ollama
 
-Este projeto implementa um agente inteligente que vive no Slack e utiliza o Ollama como cérebro local.
+Este projeto implementa um agente inteligente que vive no Slack e utiliza o Ollama como cérebro local. Ele possui ferramentas de pesquisa na web (DuckDuckGo), leitura de sites, geração de blog posts e resumos.
 
-## 🚀 README rápido
+## 🚀 Instalação Rápida (Recomendado para VPS)
+
+Se você estiver em um servidor Ubuntu/Linux, pode usar os scripts automáticos para instalar e configurar tudo como um serviço do sistema:
+
+```bash
+# 1. Torne os scripts executáveis
+chmod +x install.sh update.sh uninstall.sh
+
+# 2. Rode a instalação
+sudo ./install.sh
+```
+
+### Comandos úteis:
+- **Atualizar o agente**: `./update.sh` (Puxa do Git e reinicia o serviço)
+- **Remover tudo**: `sudo ./uninstall.sh`
+- **Ver logs**: `journalctl -u a1gente -f`
+
+---
+
+## 🛠️ Instalação Manual
 
 ### 1. Requisitos
 - Python 3.10+
 - Ollama instalado e rodando (`ollama serve`)
 - Modelo baixado: `ollama pull llama3.2:3b`
 
-### 2. Instalação
+### 2. Configuração do Ambiente
 ```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configuração
+### 3. Configuração do `.env`
 Crie um arquivo `.env` com as seguintes chaves:
 ```env
 SLACK_BOT_TOKEN=xoxb-seu-token-aqui

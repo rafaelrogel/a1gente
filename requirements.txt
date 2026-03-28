@@ -1,4 +1,8 @@
 slack-bolt
 httpx
 beautifulsoup4
+lxml
 python-dotenv
+pydantic
+ollama
+duckduckgo-search
