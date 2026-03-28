@@ -5,6 +5,10 @@ import httpx
 import logging
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
+import pytz
+import dateparser
+from datetime import datetime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from dotenv import load_dotenv
@@ -27,6 +31,26 @@ SLACK_BOT_USER_ID = os.environ.get("SLACK_BOT_USER_ID")
 OLLAMA_URL = os.environ.get("OLLAMA_URL") or os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"
 # Suporte a MODEL_NAME ou MODEL
 MODEL_NAME = os.environ.get("MODEL_NAME") or os.environ.get("MODEL") or "llama3.2:3b"
+
+# --- CONFIGURAÇÕES DE PERSISTÊNCIA ---
+# Caminho para arquivar tarefas agendadas
+SCHEDULED_TASKS_FILE = "scheduled_tasks.json"
+
+def load_scheduled_tasks() -> List[Dict[str, Any]]:
+    if os.path.exists(SCHEDULED_TASKS_FILE):
+        try:
+            with open(SCHEDULED_TASKS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Erro ao carregar tarefas agendadas: {e}")
+    return []
+
+def save_scheduled_tasks(tasks: List[Dict[str, Any]]):
+    try:
+        with open(SCHEDULED_TASKS_FILE, 'w') as f:
+            json.dump(tasks, f, indent=2)
+    except Exception as e:
+        logger.error(f"Erro ao salvar tarefas agendadas: {e}")
 
 # --- MEMÓRIA ---
 # Dicionário para armazenar o histórico de mensagens por canal/usuário
@@ -110,6 +134,31 @@ async def reply_to_slack(channel: str, message: str) -> str:
     except Exception as e:
         logger.error(f"Erro ao enviar mensagem ao Slack: {e}")
         return f"Erro ao enviar mensagem ao Slack: {str(e)}"
+
+async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
+    """Agenda uma ação recorrente para o agente realizar de forma autônoma."""
+    try:
+        # Usa dateparser para entender a regra de recorrência
+        # Note: APScheduler lida melhor com cron, mas para o MVP usaremos natural language simple parsing
+        # Para este bot, agendaremos uma tarefa diária por padrão se não especificado
+        tasks = load_scheduled_tasks()
+        new_task = {
+            "id": f"task_{int(datetime.now().timestamp())}",
+            "prompt": prompt,
+            "recurrence": recurrence,
+            "channel": channel,
+            "created_at": datetime.now().isoformat()
+        }
+        tasks.append(new_task)
+        save_scheduled_tasks(tasks)
+        
+        # Adiciona ao scheduler ativo
+        add_task_to_scheduler(new_task)
+        
+        return f"Tarefa agendada com sucesso: '{prompt}' com a regra '{recurrence}' para o canal {channel}."
+    except Exception as e:
+        logger.error(f"Erro ao agendar tarefa: {e}")
+        return f"Erro ao agendar tarefa: {str(e)}"
 
 # Definição das tools para o Ollama
 TOOLS = [
@@ -198,8 +247,69 @@ TOOLS = [
                 "required": ["query"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_action",
+            "description": "Agenda uma tarefa ou pesquisa periódica (ex: todo dia, toda segunda) e envia para o Slack.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {"type": "string", "description": "O que o agente deve fazer na execução (ex: 'Top 10 notícias de IA')."},
+                    "recurrence": {"type": "string", "description": "Regra de recorrência em português (ex: 'todo dia às 9h')."},
+                    "channel": {"type": "string", "description": "O ID do canal do Slack (ou nome)."}
+                },
+                "required": ["prompt", "recurrence", "channel"]
+            }
+        }
     }
 ]
+
+# --- BACKGROUND SCHEDULER ---
+
+scheduler = AsyncIOScheduler()
+
+def add_task_to_scheduler(task: Dict[str, Any]):
+    """Adiciona uma tarefa ao scheduler baseada em regras de tempo simples."""
+    try:
+        # Simplificação: agenda para rodar em intervalos se for 'todo dia' ou algo similar
+        # Em um app real, usaríamos cron triggers do APScheduler mais complexos
+        # Aqui, vamos parsear 'todo dia às HH:MM'
+        if "todo dia" in task["recurrence"].lower():
+            # Extrai HH:MM do texto
+            import re
+            match = re.search(r'(\d{1,2})[h:](\d{0,2})', task["recurrence"])
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2)) if match.group(2) else 0
+                scheduler.add_job(
+                    run_scheduled_task,
+                    'cron',
+                    hour=hour,
+                    minute=minute,
+                    args=[task],
+                    id=task["id"],
+                    replace_existing=True
+                )
+                logger.info(f"Tarefa {task['id']} agendada para as {hour:02d}:{minute:02d} diariamente.")
+        else:
+            # Fallback para teste: a cada 60 minutos se não entender
+            scheduler.add_job(
+                run_scheduled_task,
+                'interval',
+                minutes=60,
+                args=[task],
+                id=task["id"],
+                replace_existing=True
+            )
+    except Exception as e:
+        logger.error(f"Erro ao adicionar tarefa ao scheduler: {e}")
+
+async def run_scheduled_task(task: Dict[str, Any]):
+    """Executa a tarefa agendada sem intervenção do usuário."""
+    logger.info(f"Executando tarefa agendada: {task['prompt']}")
+    await run_agent(task["channel"], f"TAREFA AGENDADA: {task['prompt']}")
 
 # --- INTEGRAÇÃO OLLAMA ---
 
@@ -251,8 +361,7 @@ async def run_agent(channel_id: str, user_text: str):
             if message.get("content"):
                 await app.client.chat_postMessage(channel=channel_id, text=message["content"])
             break
-        
-        # Executa as ferramentas solicitadas
+                # Executa as ferramentas solicitadas
         for tool_call in tool_calls:
             function_name = tool_call["function"]["name"]
             arguments = tool_call["function"]["arguments"]
@@ -273,6 +382,8 @@ async def run_agent(channel_id: str, user_text: str):
                     result = await reply_to_slack(**arguments)
                 elif function_name == "web_search":
                     result = await web_search(**arguments)
+                elif function_name == "schedule_action":
+                    result = await schedule_action(**arguments)
                 else:
                     result = f"Erro: Ferramenta {function_name} não encontrada."
             except Exception as e:
@@ -304,6 +415,14 @@ async def handle_messages(event, say):
         await run_agent(channel_id, user_text)
 
 async def main():
+    # Inicializa o scheduler
+    scheduler.start()
+    
+    # Carrega tarefas existentes
+    tasks = load_scheduled_tasks()
+    for task in tasks:
+        add_task_to_scheduler(task)
+    
     handler = AsyncSocketModeHandler(app, SLACK_APP_TOKEN)
     await handler.start_async()
 
