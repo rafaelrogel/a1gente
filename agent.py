@@ -39,7 +39,7 @@ SCHEDULED_TASKS_FILE = "scheduled_tasks.json"
 def load_scheduled_tasks() -> List[Dict[str, Any]]:
     if os.path.exists(SCHEDULED_TASKS_FILE):
         try:
-            with open(SCHEDULED_TASKS_FILE, 'r') as f:
+            with open(SCHEDULED_TASKS_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Erro ao carregar tarefas agendadas: {e}")
@@ -47,8 +47,8 @@ def load_scheduled_tasks() -> List[Dict[str, Any]]:
 
 def save_scheduled_tasks(tasks: List[Dict[str, Any]]):
     try:
-        with open(SCHEDULED_TASKS_FILE, 'w') as f:
-            json.dump(tasks, f, indent=2)
+        with open(SCHEDULED_TASKS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(tasks, f, indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Erro ao salvar tarefas agendadas: {e}")
 
@@ -138,9 +138,13 @@ async def reply_to_slack(channel: str, message: str) -> str:
 async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
     """Agenda uma ação recorrente para o agente realizar de forma autônoma."""
     try:
-        # Usa dateparser para entender a regra de recorrência
-        # Note: APScheduler lida melhor com cron, mas para o MVP usaremos natural language simple parsing
-        # Para este bot, agendaremos uma tarefa diária por padrão se não especificado
+        # Tenta sanitizar o channel: se não começar com C ou D, o LLM pode ter passado o nome.
+        # Mas para o scheduler funcionar, precisamos do ID.
+        # Se formos chamados via Slack, o channel_id atual está disponível no contexto.
+        # Por simplicidade, se o ID não parecer um canal Slack, avisamos.
+        if not (channel.startswith("C") or channel.startswith("D")):
+             logger.warning(f"O nome do canal '{channel}' pode não ser um ID válido do Slack.")
+
         tasks = load_scheduled_tasks()
         new_task = {
             "id": f"task_{int(datetime.now().timestamp())}",
@@ -155,7 +159,12 @@ async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
         # Adiciona ao scheduler ativo
         add_task_to_scheduler(new_task)
         
-        return f"Tarefa agendada com sucesso: '{prompt}' com a regra '{recurrence}' para o canal {channel}."
+        msg = f"✅ *Agendado com sucesso!*\n\n• *Ação*: {prompt}\n• *Frequência*: {recurrence}\n• *Canal*: <#{channel}>"
+        
+        # Envia confirmação imediata ao Slack para garantir que o usuário saiba que funcionou
+        await app.client.chat_postMessage(channel=channel, text=msg)
+        
+        return msg
     except Exception as e:
         logger.error(f"Erro ao agendar tarefa: {e}")
         return f"Erro ao agendar tarefa: {str(e)}"
@@ -258,7 +267,7 @@ TOOLS = [
                 "properties": {
                     "prompt": {"type": "string", "description": "O que o agente deve fazer na execução (ex: 'Top 10 notícias de IA')."},
                     "recurrence": {"type": "string", "description": "Regra de recorrência em português (ex: 'todo dia às 9h')."},
-                    "channel": {"type": "string", "description": "O ID do canal do Slack (ou nome)."}
+                    "channel": {"type": "string", "description": "O ID do canal do Slack (EX: C0123456)."}
                 },
                 "required": ["prompt", "recurrence", "channel"]
             }
