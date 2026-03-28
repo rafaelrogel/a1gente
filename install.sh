@@ -89,7 +89,8 @@ systemctl daemon-reload
 systemctl enable ollama
 systemctl enable a1gente
 systemctl restart ollama
-sleep 5 # Espera o Ollama subir
+systemctl restart a1gente
+sleep 5 # Espera serviços subirem
 
 # 8. Pré-carregamento do Modelo
 echo "📥 Baixando modelo llama3.2:3b (isso pode demorar)..."
