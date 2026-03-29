@@ -289,14 +289,25 @@ async def call_ollama(messages: List[Dict[str, Any]], tools: Optional[List[Dict[
     if tools:
         payload["tools"] = tools
 
+    # Aumentado timeout para 900s (15 min) pois o 3B em ARM64 pode ser lento para contextos grandes
+    timeout = 900.0
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=payload, timeout=300.0)
+            start_time = datetime.now()
+            response = await client.post(url, json=payload, timeout=timeout)
+            duration = (datetime.now() - start_time).total_seconds()
+            logger.info(f"Ollama respondeu em {duration:.2f}s")
+            
             if response.status_code != 200:
-                return {"message": {"role": "assistant", "content": f"Erro Ollama: {response.text}"}}
+                return {"message": {"role": "assistant", "content": f"⚠️ *Erro Ollama ({response.status_code})*: {response.text}"}}
             return response.json()
+        except httpx.TimeoutException:
+            return {"message": {"role": "assistant", "content": f"⏳ *Erro de Timeout*: O Ollama demorou mais de {timeout}s para responder. O contexto pode ser grande demais ou o VPS está sobrecarregado."}}
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            return {"message": {"role": "assistant", "content": f"❌ *Erro de Conexão*: Não foi possível conectar ao Ollama em {OLLAMA_URL}. Verifique se o serviço está rodando."}}
         except Exception as e:
-            return {"message": {"role": "assistant", "content": f"Erro Conexão: {str(e)}"}}
+            logger.error(f"Erro inesperado no call_ollama: {repr(e)}")
+            return {"message": {"role": "assistant", "content": f"❗ *Erro Inesperado*: {repr(e)}"}}
 
 # --- LÓGICA DO AGENTE ---
 
