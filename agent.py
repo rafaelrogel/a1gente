@@ -56,7 +56,7 @@ def save_scheduled_tasks(tasks: List[Dict[str, Any]]):
 # --- MEMÓRIA ---
 # Dicionário para armazenar o histórico de mensagens por canal/usuário
 memory: Dict[str, List[Dict[str, Any]]] = {}
-MAX_MEMORY = 10
+MAX_MEMORY = 5
 
 def update_memory(channel_id: str, role: str, content: str, tool_calls: Optional[List] = None):
     if channel_id not in memory:
@@ -284,13 +284,13 @@ async def call_ollama(messages: List[Dict[str, Any]], tools: Optional[List[Dict[
         "model": MODEL_NAME,
         "messages": messages,
         "stream": False,
-        "options": {"num_ctx": 4096}
+        "options": {"num_ctx": 3072}
     }
     if tools:
         payload["tools"] = tools
 
-    # Aumentado timeout para 900s (15 min) pois o 3B em ARM64 pode ser lento para contextos grandes
-    timeout = 900.0
+    # Aumentado timeout para 1800s (30 min) pois o 3B em ARM64 pode ser lento para contextos grandes
+    timeout = 1800.0
     async with httpx.AsyncClient() as client:
         try:
             start_time = datetime.now()
