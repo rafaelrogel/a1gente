@@ -11,26 +11,29 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
     """
     Busca posts recentes de um subreddit do Reddit.
 
-    Usa o Reddit JSON API (não requer autenticação para leitura básica).
-    Alternativas: 'hot', 'new', 'top', 'rising'
+    Usa a API de busca com filtro de subreddit (workaround para limitacoes da API).
+    Alternativas de sort: 'hot', 'new', 'top', 'rising'
     """
     try:
-        sort_url = {
-            "hot": ".json?limit=25",
-            "new": "/new/.json?limit=25",
-            "top": "/top/.json?limit=25",
-            "rising": "/rising/.json?limit=25",
-        }.get(sort.lower(), ".json?limit=25")
-
-        url = f"https://www.reddit.com/r/{subreddit}{sort_url}"
+        sort_param = {"hot": "hot", "new": "new", "top": "top", "rising": "rising"}.get(
+            sort.lower(), "hot"
+        )
 
         headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; NordicClawBot/1.0; +https://github.com/rafaelrogel/a1gente)",
-            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, timeout=OLLAMA_TIMEOUT)
+            url = "https://www.reddit.com/search.json"
+            params = {
+                "q": f"subreddit:{subreddit}",
+                "limit": min(limit * 2, 25),
+                "sort": sort_param,
+            }
+
+            response = await client.get(
+                url, params=params, headers=headers, timeout=OLLAMA_TIMEOUT
+            )
 
             if response.status_code == 404:
                 return f"❌ Subreddit 'r/{subreddit}' não encontrado."
@@ -47,8 +50,15 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
 
             results = [f"📱 *r/{subreddit}* ({sort})*\n"]
 
-            for i, post in enumerate(posts[:limit], 1):
+            count = 0
+            for post in posts:
+                if count >= limit:
+                    break
                 post_data = post.get("data", {})
+                post_subreddit = post_data.get("subreddit", "")
+                if post_subreddit.lower() != subreddit.lower():
+                    continue
+
                 title = post_data.get("title", "")[:80]
                 author = post_data.get("author", "[deleted]")
                 score = post_data.get("score", 0)
@@ -68,13 +78,17 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
                     else ""
                 )
 
-                results.append(f"\n{i}. *{title}*")
+                count += 1
+                results.append(f"\n{count}. *{title}*")
                 results.append(
                     f"   👤 @{author} | 👍 {score} | 💬 {num_comments} | {time_str}"
                 )
                 if selftext:
                     results.append(f"   📝 {selftext}...")
                 results.append(f"   🔗 {url}")
+
+            if count == 0:
+                return f"Nenhum post encontrado em r/{subreddit}."
 
             return "\n".join(results)
     except httpx.TimeoutException:
