@@ -335,6 +335,39 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "switch_model",
+            "description": "Switches the LLM model. Clears conversation context.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "model_name": {
+                        "type": "string",
+                        "description": "Model name: llama3.2:3b, tinyllama, phi, smollm2, qwen2.5:1.5b, granite3.1-moe",
+                    },
+                },
+                "required": ["model_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_available_models",
+            "description": "Lists all available models that can be switched to.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_model",
+            "description": "Gets the currently active model.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
 ]
 
 
@@ -453,5 +486,17 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         from reddit_tools import search_reddit
 
         return await search_reddit(**args)
+    elif name == "switch_model":
+        from model_manager import switch_model
+
+        return switch_model(**args)
+    elif name == "get_available_models":
+        from model_manager import get_available_models
+
+        return "Modelos disponíveis: " + ", ".join(get_available_models())
+    elif name == "get_current_model":
+        from model_manager import get_current_model
+
+        return f"Modelo atual: {get_current_model()}"
     else:
         return f"Erro: {name} não encontrada."
