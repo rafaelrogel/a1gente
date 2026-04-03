@@ -11,7 +11,7 @@ from config import (
     MAX_MEMORY,
     MAX_ITERATIONS,
 )
-from memory import update_memory, get_memory
+from memory import update_memory, get_memory, clear_memory
 from ollama_client import call_ollama
 from tools import TOOLS, execute_tool
 from scheduler import scheduler, load_scheduled_tasks, add_task_to_scheduler
@@ -97,8 +97,16 @@ async def run_agent(channel_id: str, user_text: str):
 
 
 async def run_scheduled_task(task: Dict[str, Any]):
+    from datetime import datetime
+
     logger.info(f"Executando tarefa agendada: {task['prompt']}")
-    await run_agent(task["channel"], f"TAREFA AGENDADA: {task['prompt']}")
+
+    now = datetime.now()
+    date_prefix = now.strftime("%d/%m/%Y às %H:%M")
+
+    clear_memory(task["channel"])
+
+    await run_agent(task["channel"], f"[{date_prefix}] {task['prompt']}")
 
 
 async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
