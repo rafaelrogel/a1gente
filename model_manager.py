@@ -6,8 +6,6 @@ logger = logging.getLogger(__name__)
 AVAILABLE_MODELS = [
     "llama3.2:3b",
     "tinyllama",
-    "phi",
-    "smollm2",
     "qwen2.5:1.5b",
     "granite3.1-moe",
 ]

@@ -345,7 +345,7 @@ TOOLS = [
                 "properties": {
                     "model_name": {
                         "type": "string",
-                        "description": "Model name: llama3.2:3b, tinyllama, phi, smollm2, qwen2.5:1.5b, granite3.1-moe",
+                        "description": "Model name: llama3.2:3b, tinyllama, qwen2.5:1.5b, granite3.1-moe",
                     },
                 },
                 "required": ["model_name"],
