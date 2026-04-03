@@ -139,6 +139,11 @@ sudo ./install.sh
 | `list_notes` | List all notes | `list_notes()` |
 | `delete_note` | Delete a note | `delete_note(key="ideas")` |
 | `send_dm` | Send DM | `send_dm(user_id="U123456", message="Hi!")` |
+| `set_reminder` | One-time reminder | `set_reminder(text="Meeting", minutes=30, user_id="U123")` |
+| `search_gif` | Search GIFs | `search_gif(query="happy", limit=5)` |
+| `get_github_activity` | GitHub repo activity | `get_github_activity(repo="owner/repo", days=7)` |
+| `scrape_reddit` | Subreddit posts | `scrape_reddit(subreddit="brasil", sort="hot")` |
+| `search_reddit` | Search Reddit | `search_reddit(query="python tips", limit=10)` |
 | `web_search` | Web search | `web_search(query="latest AI news")` |
 | `fetch_webpage` | Extract content | `fetch_webpage(url="https://example.com")` |
 | `schedule_action` | Schedule task | `schedule_action(prompt="News", recurrence="daily 9h", channel="C123")` |
@@ -172,6 +177,10 @@ Nordic-Claw é um bot do Slack que usa Ollama (LLM local) como cérebro. Possui 
 | **Tradução** | Traduz para 12+ idiomas (API MyMemory - gratuito) |
 | **Notas** | Salvar, recuperar, listar e deletar notas |
 | **Mensagens Diretas** | Enviar DMs para usuários do Slack |
+| **Lembretes** | Lembretes únicos que enviam DM após tempo |
+| **GIFs** | Buscar e compartilhar GIFs via Giphy |
+| **GitHub** | Ver atividade de repositórios (PRs, issues) |
+| **Reddit** | Ver posts de subreddits ou buscar no Reddit |
 | **Tarefas Agendadas** | Agendar tarefas recorrentes (diárias, horárias) |
 
 ### Pré-requisitos
@@ -280,6 +289,11 @@ sudo ./install.sh
 | `list_notes` | Listar notas | `list_notes()` |
 | `delete_note` | Deletar nota | `delete_note(key="ideias")` |
 | `send_dm` | Enviar DM | `send_dm(user_id="U123456", message="Olá!")` |
+| `set_reminder` | Lembrete | `set_reminder(text="Reunião", minutes=30, user_id="U123")` |
+| `search_gif` | Buscar GIFs | `search_gif(query="feliz", limit=5)` |
+| `get_github_activity` | Atividade GitHub | `get_github_activity(repo="owner/repo", days=7)` |
+| `scrape_reddit` | Posts do subreddit | `scrape_reddit(subreddit="brasil", sort="hot")` |
+| `search_reddit` | Buscar no Reddit | `search_reddit(query="dicas python", limit=10)` |
 | `web_search` | Pesquisa web | `web_search(query="últimas notícias de IA")` |
 | `fetch_webpage` | Extrair conteúdo | `fetch_webpage(url="https://exemplo.com")` |
 | `schedule_action` | Agendar tarefa | `schedule_action(prompt="Notícias", recurrence="todo dia 9h", channel="C123")` |
@@ -309,6 +323,10 @@ a1gente/
 ├── weather.py         # Weather tool
 ├── translate.py       # Translation tool
 ├── notes.py           # Notes storage tool
+├── reminders.py        # One-time reminders
+├── giphy.py           # GIF search tool
+├── github_tools.py    # GitHub activity tool
+├── reddit_tools.py    # Reddit scraping tool
 ├── web_utils.py       # Web fetching utilities
 ├── requirements.txt   # Dependencies
 ├── .env.example       # Environment template

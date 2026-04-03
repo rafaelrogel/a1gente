@@ -231,6 +231,110 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_reminder",
+            "description": "Sets a one-time reminder. Bot will DM you after the specified minutes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Reminder text."},
+                    "minutes": {
+                        "type": "integer",
+                        "description": "Minutes until reminder (1-10080).",
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "description": "Your Slack user ID to receive the DM.",
+                    },
+                },
+                "required": ["text", "minutes", "user_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_gif",
+            "description": "Searches for GIFs using Giphy.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query for GIF."},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max GIFs to return (1-10). Default: 5.",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_github_activity",
+            "description": "Gets recent GitHub activity for a repository (PRs and issues).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository in format 'owner/repo' (e.g., 'rafaelrogel/a1gente').",
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Days to look back. Default: 7.",
+                    },
+                },
+                "required": ["repo"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "scrape_reddit",
+            "description": "Gets recent posts from a subreddit.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subreddit": {
+                        "type": "string",
+                        "description": "Subreddit name without 'r/' (e.g., 'programming', 'brasil').",
+                    },
+                    "sort": {
+                        "type": "string",
+                        "description": "Sort by: 'hot', 'new', 'top'. Default: 'hot'.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of posts (1-25). Default: 10.",
+                    },
+                },
+                "required": ["subreddit"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_reddit",
+            "description": "Searches all of Reddit for posts matching a query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query."},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of results (1-25). Default: 10.",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 
@@ -329,5 +433,25 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
                 logger.error(f"Erro ao enviar DM: {e}")
                 return f"ERRO ao enviar DM: {str(e)}"
         return "Erro: app não disponível"
+    elif name == "set_reminder":
+        from reminders import set_reminder
+
+        return await set_reminder(**args)
+    elif name == "search_gif":
+        from giphy import search_gif
+
+        return await search_gif(**args)
+    elif name == "get_github_activity":
+        from github_tools import get_github_activity
+
+        return await get_github_activity(**args)
+    elif name == "scrape_reddit":
+        from reddit_tools import scrape_reddit
+
+        return await scrape_reddit(**args)
+    elif name == "search_reddit":
+        from reddit_tools import search_reddit
+
+        return await search_reddit(**args)
     else:
         return f"Erro: {name} não encontrada."

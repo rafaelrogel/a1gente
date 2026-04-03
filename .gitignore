@@ -46,6 +46,7 @@ logs/
 
 # Local files
 notes.json
+reminders.json
 scheduled_tasks.json
 
 # SSH/Scripts

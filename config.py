@@ -17,6 +17,8 @@ OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT") or 600.0)
 MAX_MEMORY = int(os.environ.get("MAX_MEMORY") or 10)
 MAX_ITERATIONS = int(os.environ.get("MAX_ITERATIONS") or 3)
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
+GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULED_TASKS_FILE = os.environ.get("SCHEDULED_TASKS_FILE") or os.path.join(

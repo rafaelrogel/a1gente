@@ -148,6 +148,9 @@ async def main():
     scheduler.start()
     for t in load_scheduled_tasks():
         add_task_to_scheduler(t, run_scheduled_task)
+    from reminders import init_scheduler
+
+    init_scheduler()
     handler = AsyncSocketModeHandler(app, SLACK_APP_TOKEN)
     await handler.start_async()
 
