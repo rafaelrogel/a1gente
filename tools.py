@@ -376,6 +376,31 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_image",
+            "description": "Generates an image from a text prompt using free AI image generation service.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Text description of the image to generate (e.g., 'a cat wearing sunglasses on a beach')",
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "Image width in pixels (default: 512, min: 64, max: 1024)",
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "Image height in pixels (default: 512, min: 64, max: 1024)",
+                    },
+                },
+                "required": ["prompt"],
+            },
+        },
+    },
 ]
 
 
@@ -424,13 +449,14 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 📅 *TAREFAS AGENDADAS*
 • `agende [ação] todo dia às [hora]` - Criar tarefa recorrente
 
-💬 *OUTROS*
-• `crie um post de blog: título [X], conteúdo [Y]`
-• `envie DM para [user_id]: [mensagem]`
+    💬 *OUTROS*
+    • `crie um post de blog: título [X], conteúdo [Y]`
+    • `envie DM para [user_id]: [mensagem]`
+    • `gere uma imagem: [descrição] [largura X altura]` - Gerar imagem (ex: `gere uma imagem: gato de óculos de sol na praia 512x512`)
 
-━━━━━━━━━━━━━━━━━━━━━━
+    ━━━━━━━━━━━━━━━━━━━━━━
 
-💡 *Dica:* Seja específico para melhores resultados!"""
+    💡 *Dica:* Seja específico para melhores resultados!"""
 
 
 async def read_slack_message(text: str) -> str:
@@ -562,5 +588,9 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         return f"Modelo atual: {get_current_model()}"
     elif name == "show_features":
         return get_features_message()
+    elif name == "generate_image":
+        from image_gen import generate_image
+
+        return await generate_image(**args)
     else:
         return f"Erro: {name} não encontrada."
