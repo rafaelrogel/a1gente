@@ -16,6 +16,7 @@ OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX") or 3072)
 OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT") or 600.0)
 MAX_MEMORY = int(os.environ.get("MAX_MEMORY") or 10)
 MAX_ITERATIONS = int(os.environ.get("MAX_ITERATIONS") or 3)
+OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULED_TASKS_FILE = os.environ.get("SCHEDULED_TASKS_FILE") or os.path.join(

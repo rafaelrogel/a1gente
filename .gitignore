@@ -1,8 +1,63 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 venv/
+ENV/
+env/
+.venv/
+
+# Environment
 .env
-.python-version
+.env.local
+.env.*.local
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
 *.log
+logs/
+*.log.*
+
+# Local files
+notes.json
+scheduled_tasks.json
+
+# SSH/Scripts
+ssh_connect.py
+ssh_connect.ps1
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Git
+*.bak
+*~
