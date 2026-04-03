@@ -4,3 +4,8 @@ duckduckgo-search
 apscheduler
 dateparser
 pytz
+slack-bolt
+httpx
+beautifulsoup4
+python-dotenv
+pytest
