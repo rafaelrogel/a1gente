@@ -368,7 +368,69 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_features",
+            "description": "Shows all available features and commands.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
 ]
+
+
+def get_features_message() -> str:
+    return """🤖 *Olá! Eu sou o Nordic-Claw!*
+
+Aqui estão todas as minhas funcionalidades e como me usar:
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 *PESQUISA E INFORMAÇÃO*
+• `pesquise sobre [tema]` - Buscar notícias e informações
+• `mostre posts do reddit [subreddit]` - Ver posts do Reddit
+• `busque no reddit [termo]` - Buscar no Reddit
+
+🌐 *WEB*
+• `busque [URL]` - Extrair conteúdo de uma página
+• `resuma [texto ou URL]` - Resumir conteúdo
+
+🌤️ *CLIMA*
+• `qual o clima em [cidade]?` - Ver天气预报
+
+🌐 *TRADUÇÃO*
+• `traduza "[texto]" para [idioma]` - Traduzir texto
+
+📝 *NOTAS*
+• `salve uma nota: [chave], conteúdo: [texto]` - Salvar nota
+• `veja minha nota [chave]` - Ver nota
+• `liste minhas notas` - Listar todas
+• `delete nota [chave]` - Deletar nota
+
+⏰ *LEMBRETES*
+• `me lembre de [texto] em [X] minutos` - Definir lembrete
+
+🎬 *GIFS*
+• `procure um gif de [termo]` - Buscar GIF
+
+📊 *GITHUB*
+• `mostre atividade do github [owner/repo]` - Ver PRs e issues
+
+🔄 *MODELOS DE IA*
+• `mude para [modelo]` - Trocar modelo (tinyllama, granite3.1-moe, qwen2.5:1.5b, llama3.2:3b)
+• `qual modelo estamos usando?` - Ver modelo atual
+• `liste os modelos disponíveis` - Ver todos
+
+📅 *TAREFAS AGENDADAS*
+• `agende [ação] todo dia às [hora]` - Criar tarefa recorrente
+
+💬 *OUTROS*
+• `crie um post de blog: título [X], conteúdo [Y]`
+• `envie DM para [user_id]: [mensagem]`
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *Dica:* Seja específico para melhores resultados!"""
 
 
 async def read_slack_message(text: str) -> str:
@@ -498,5 +560,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         from model_manager import get_current_model
 
         return f"Modelo atual: {get_current_model()}"
+    elif name == "show_features":
+        return get_features_message()
     else:
         return f"Erro: {name} não encontrada."
