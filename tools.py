@@ -145,7 +145,7 @@ async def summarize_text(text: str) -> str:
     return f"Resumo solicitado para: {text[:100]}..."
 
 
-async def execute_tool(name: str, args: Dict[str, Any]) -> str:
+async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     if name == "read_slack_message":
         return await read_slack_message(**args)
     elif name == "write_blog_post":
@@ -157,16 +157,16 @@ async def execute_tool(name: str, args: Dict[str, Any]) -> str:
     elif name == "summarize_text":
         return await summarize_text(**args)
     elif name == "reply_to_slack":
-        from slack_client import app
-
-        await app.client.chat_postMessage(
-            channel=args["channel"], text=str(args["message"])
-        )
-        return "Mensagem enviada com sucesso ao Slack."
+        if app:
+            await app.client.chat_postMessage(
+                channel=args["channel"], text=str(args["message"])
+            )
+            return "Mensagem enviada com sucesso ao Slack."
+        return "Erro: app não disponível"
     elif name == "web_search":
         return await web_search(**args)
     elif name == "schedule_action":
-        from slack_client import schedule_action
+        from agent import schedule_action
 
         return await schedule_action(**args)
     else:

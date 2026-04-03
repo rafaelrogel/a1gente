@@ -15,21 +15,13 @@ from memory import update_memory, get_memory
 from ollama_client import call_ollama
 from tools import TOOLS, execute_tool
 from scheduler import scheduler, load_scheduled_tasks, add_task_to_scheduler
+from slack_bolt.async_app import AsyncApp
+from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = None
-
-
-def get_app():
-    global app
-    if app is None:
-        from slack_bolt.async_app import AsyncApp
-        from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
-
-        app = AsyncApp(token=SLACK_BOT_TOKEN)
-    return app
+app = AsyncApp(token=SLACK_BOT_TOKEN)
 
 
 async def run_agent(channel_id: str, user_text: str):
@@ -39,7 +31,7 @@ async def run_agent(channel_id: str, user_text: str):
         f"2. Se for agendar para este canal, o ID é '{channel_id}'.\n"
         "3. Responda sempre em Português.\n"
         "4. NUNCA invente informações, links ou notícias. Se não tiver certeza, diga que não sabe.\n"
-        "5. Ao usar web_search, apresenta APENAS os resultados reais retornados pela ferramenta. Não adicione nem altere informações.\n"
+        "5. Ao usar web_search, apresenta APENAS os resultados reais retornados pela ferramenta. Não adiciona nem altere informações.\n"
         "6. Links devem ser copiados exatamente como retornados pela ferramenta de busca."
     )
 
@@ -87,9 +79,7 @@ async def run_agent(channel_id: str, user_text: str):
 
         if not tool_calls:
             if content:
-                await get_app().client.chat_postMessage(
-                    channel=channel_id, text=content
-                )
+                await app.client.chat_postMessage(channel=channel_id, text=content)
             break
 
         for tc in tool_calls:
@@ -99,7 +89,7 @@ async def run_agent(channel_id: str, user_text: str):
 
             res = ""
             try:
-                res = await execute_tool(fn, args)
+                res = await execute_tool(fn, args, app=app)
             except Exception as e:
                 res = f"Erro {fn}: {str(e)}"
 
@@ -130,7 +120,7 @@ async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
         add_task_to_scheduler(new_task, run_scheduled_task)
 
         msg = f"✅ *Agendado com sucesso!*\n\n• *Ação*: {prompt}\n• *Frequência*: {recurrence}\n• *Canal*: <#{channel}>"
-        await get_app().client.chat_postMessage(channel=channel, text=msg)
+        await app.client.chat_postMessage(channel=channel, text=msg)
         return f"Tarefa agendada e confirmada: {msg}"
     except Exception as e:
         logger.error(f"Erro ao agendar tarefa: {e}")
@@ -158,7 +148,7 @@ async def main():
     scheduler.start()
     for t in load_scheduled_tasks():
         add_task_to_scheduler(t, run_scheduled_task)
-    handler = AsyncSocketModeHandler(get_app(), SLACK_APP_TOKEN)
+    handler = AsyncSocketModeHandler(app, SLACK_APP_TOKEN)
     await handler.start_async()
 
 
