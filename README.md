@@ -39,6 +39,22 @@ Nordic-Claw is a Slack bot that uses Ollama (local LLM) as its brain. It feature
 - Ollama installed and running (`ollama serve`)
 - Model downloaded: `ollama pull llama3.2:3b`
 
+### ⚠️ Security Warning
+
+**NEVER commit the `.env` file to GitHub!**
+
+Your `.env` file contains sensitive credentials:
+- `SLACK_BOT_TOKEN`
+- `SLACK_APP_TOKEN`
+- `OPENWEATHER_API_KEY`
+
+This repository uses `.gitignore` to exclude `.env`, but always verify before pushing:
+```bash
+# Check if .env is in git status - it should NOT be!
+git status
+# If .env appears, run: git restore .env
+```
+
 ### Installation
 
 ```bash
@@ -163,6 +179,22 @@ Nordic-Claw é um bot do Slack que usa Ollama (LLM local) como cérebro. Possui 
 - Python 3.10+
 - Ollama instalado e rodando (`ollama serve`)
 - Modelo baixado: `ollama pull llama3.2:3b`
+
+### ⚠️ Aviso de Segurança
+
+**NUNCA commite o arquivo `.env` para o GitHub!**
+
+Seu arquivo `.env` contém credenciais sensíveis:
+- `SLACK_BOT_TOKEN`
+- `SLACK_APP_TOKEN`
+- `OPENWEATHER_API_KEY`
+
+Este repositório usa `.gitignore` para excluir `.env`, mas sempre verifique antes de fazer push:
+```bash
+# Verifique se .env está no git status - NÃO deve estar!
+git status
+# Se .env aparecer, execute: git restore .env
+```
 
 ### Instalação
 
