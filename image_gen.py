@@ -23,8 +23,18 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
         if not prompt or not prompt.strip():
             return "ERRO_GERACAO_IMAGEM: Prompt não pode estar vazio"
 
+        # Validate and correct dimensions - ensure we're working with integers
+        try:
+            original_width = int(width) if width is not None else 512
+            original_height = int(height) if height is not None else 512
+        except (ValueError, TypeError):
+            # If conversion fails, use defaults
+            original_width = original_height = 512
+
+        width = original_width
+        height = original_height
+
         # Validate and correct dimensions
-        original_width, original_height = width, height
         if width < 64:
             width = 64
         elif width > 1024:
@@ -38,7 +48,10 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
         # Warn if dimensions were corrected
         dimension_warning = ""
         try:
-            if int(original_width) != width or int(original_height) != height:
+            # Ensure we're working with integers for comparison
+            orig_w = int(original_width) if original_width is not None else 0
+            orig_h = int(original_height) if original_height is not None else 0
+            if orig_w != width or orig_h != height:
                 dimension_warning = f"\n*Nota: Dimensões ajustadas de {original_width}x{original_height} para {width}x{height}*"
         except (ValueError, TypeError):
             # If conversion fails, skip the warning
