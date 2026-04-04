@@ -37,8 +37,12 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
 
         # Warn if dimensions were corrected
         dimension_warning = ""
-        if original_width != width or original_height != height:
-            dimension_warning = f"\n*Nota: Dimensões ajustadas de {original_width}x{original_height} para {width}x{height}*"
+        try:
+            if int(original_width) != width or int(original_height) != height:
+                dimension_warning = f"\n*Nota: Dimensões ajustadas de {original_width}x{original_height} para {width}x{height}*"
+        except (ValueError, TypeError):
+            # If conversion fails, skip the warning
+            pass
 
         # Format prompt for URL (handle special characters)
         # Replace spaces with %20 and handle other URL-unsafe characters
