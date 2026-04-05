@@ -605,7 +605,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_jobs",
-            "description": "Actively searches for new jobs matching the user's profile and saves matches with score >= 40.",
+            "description": "Busca ativamente vagas de emprego na internet usando DuckDuckGo e salva as que combinam com o perfil (score>=40). USE esta funcao quando o usuario pedir para buscar vagas. NAO diga que busca em banco de dados.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -616,7 +616,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "list_jobs",
-            "description": "Lists saved job matches with their scores and status.",
+            "description": "Lista vagas ja salvas no banco de dados local.",
             "parameters": {
                 "type": "object",
                 "properties": {
