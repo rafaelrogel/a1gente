@@ -995,11 +995,13 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
 
         jobs = await search_jobs_and_score()
         if not jobs:
-            return "Nenhuma nova vaga encontrada com pontuacao >= 40."
+            return "Nenhuma nova vaga encontrada."
 
-        msg = "🔔 *Novas Vagas Encontradas:*\n\n"
-        for job in jobs:
-            msg += format_job_message(job) + "\n\n"
+        msg = f"🔔 {len(jobs)} nova(s) vaga(s):\n"
+        for job in jobs[:5]:
+            msg += (
+                f"• {job['title'][:40]} ({job['score']}pts) - {job['company'][:20]}\n"
+            )
         return msg
     elif name == "list_jobs":
         from job_scout import get_jobs, format_jobs_list
