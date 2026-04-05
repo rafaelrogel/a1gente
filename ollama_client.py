@@ -11,6 +11,7 @@ MODEL_PROFILES = {
     "fast": {
         "models": ["tinyllama", "granite3.1-moe"],
         "description": "Modelo rapido para tarefas simples",
+        "supports_tools": False,
         "use_cases": [
             "saudacoes",
             "clima",
@@ -23,6 +24,7 @@ MODEL_PROFILES = {
     "smart": {
         "models": ["llama3.2:3b", "qwen2.5:1.5b"],
         "description": "Modelo inteligente para tarefas complexas",
+        "supports_tools": True,
         "use_cases": [
             "pesquisa",
             "analise",
@@ -138,7 +140,17 @@ def analyze_query_complexity(query: str) -> str:
         return "smart"
 
 
-def get_model_for_complexity(complexity: str, current_model: str = MODEL_NAME) -> str:
+def get_model_for_complexity(
+    complexity: str,
+    current_model: str = MODEL_NAME,
+    tools: Optional[List[Dict[str, Any]]] = None,
+) -> str:
+    if tools:
+        for profile in MODEL_PROFILES.values():
+            if profile.get("supports_tools") and profile["models"][0] != "tinyllama":
+                return profile["models"][0]
+        return "llama3.2:3b"
+
     if complexity == "fast":
         return MODEL_PROFILES["fast"]["models"][0]
     else:
@@ -163,7 +175,7 @@ async def call_ollama(
 
         if last_user_msg:
             complexity = analyze_query_complexity(last_user_msg)
-            routed_model = get_model_for_complexity(complexity, model)
+            routed_model = get_model_for_complexity(complexity, model, tools)
             if routed_model != model:
                 logger.info(
                     f"Smart routing: {complexity} -> {routed_model} (original: {model})"
