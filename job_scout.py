@@ -217,4 +217,143 @@ def score_job_against_profile(job: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            company TEXT NOT NULL,
+            location TEXT NOT NULL,
+            url TEXT NOT NULL,
+            description TEXT,
+            score INTEGER DEFAULT 0,
+            score_reason TEXT,
+            status TEXT DEFAULT 'new',
+            applied_at TEXT,
+            notes TEXT,
+            found_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+    logger.info("Job Scout database initialized")
+
+
+def generate_job_id(title: str, company: str, url: str) -> str:
+    content = f"{title.lower().strip()}-{company.lower().strip()}-{url.lower().strip()}"
+    return hashlib.md5(content.encode()).hexdigest()[:12]
+
+
+def save_job(job: Dict[str, Any]) -> bool:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        job_id = job.get("job_id")
+        cursor.execute("SELECT id FROM jobs WHERE job_id = ?", (job_id,))
+        if cursor.fetchone():
+            conn.close()
+            return False
+
+        now = datetime.now().isoformat()
+        cursor.execute(
+            """INSERT INTO jobs (job_id, title, company, location, url, description, score, score_reason, status, found_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                job_id,
+                job.get("title", ""),
+                job.get("company", ""),
+                job.get("location", ""),
+                job.get("url", ""),
+                job.get("description", ""),
+                job.get("score", 0),
+                job.get("score_reason", ""),
+                "new",
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao salvar vaga: {e}")
+        return False
+
+
+def get_jobs(status: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        if status:
+            cursor.execute(
+                "SELECT * FROM jobs WHERE status = ? ORDER BY score DESC, created_at DESC LIMIT ?",
+                (status, limit),
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM jobs ORDER BY score DESC, created_at DESC LIMIT ?",
+                (limit,),
+            )
+        jobs = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jobs
+    except Exception as e:
+        logger.error(f"Erro ao buscar vagas: {e}")
+        return []
+
+
+def mark_applied(job_id: str) -> bool:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        now = datetime.now().isoformat()
+        cursor.execute(
+            "UPDATE jobs SET status = 'applied', applied_at = ? WHERE job_id = ?",
+            (now, job_id),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao marcar vaga como aplicada: {e}")
+        return False
+
+
+def get_stats() -> Dict[str, Any]:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as total FROM jobs")
+        total = cursor.fetchone()["total"]
+        cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE status = 'new'")
+        new_count = cursor.fetchone()["count"]
+        cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE status = 'applied'")
+        applied_count = cursor.fetchone()["count"]
+        cursor.execute("SELECT AVG(score) as avg_score FROM jobs WHERE score > 0")
+        avg_score = round(cursor.fetchone()["avg_score"] or 0, 1)
+        cursor.execute("SELECT MAX(score) as max_score FROM jobs WHERE score > 0")
+        max_score = cursor.fetchone()["max_score"] or 0
+        conn.close()
+        return {
+            "total": total,
+            "new": new_count,
+            "applied": applied_count,
+            "avg_score": avg_score,
+            "max_score": max_score,
+        }
+    except Exception as e:
+        logger.error(f"Erro ao obter estatisticas: {e}")
+        return {}
+
+
 init_db()
