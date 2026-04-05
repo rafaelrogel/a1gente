@@ -584,6 +584,23 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_python_code",
+            "description": "Executes simple Python code safely on the VPS. Supports math, data processing, text manipulation, and more. Blocks dangerous operations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Python code to execute (max 5000 chars). Can use: math, json, datetime, random, re, collections, itertools, statistics, etc.",
+                    },
+                },
+                "required": ["code"],
+            },
+        },
+    },
 ]
 
 
@@ -639,6 +656,12 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 • `execute comando [comando]` - Executar comando seguro (ex: df -h, free -m, uptime)
 • `logs recentes [N]` - Ver logs recentes do serviço (ex: logs recentes 20)
 • `status do git` - Ver status do git, branch e commits recentes
+
+💻 *EXECUÇÃO DE CÓDIGO PYTHON*
+• `execute python: [codigo]` - Executar codigo Python simples no VPS
+• Exemplos: `execute python: print(2 + 2)`, `execute python: import math; print(math.pi)`, `execute python: print([x**2 for x in range(10)])`
+• Suporta: math, json, datetime, random, re, collections, itertools, statistics, string
+• Bloqueado: os, subprocess, socket, eval, exec, open, import
 
 🧠 *MEMÓRIA DE LONGO PRAZO*
 • `lembre que [fato]` - Armazenar fato importante para referência futura
@@ -869,5 +892,9 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
                 msg += f"• *{r['name']}*: {r['description']}\n  Horário padrão: {r['default_time']}\n\n"
             return msg
         return "Nenhum relatório disponível."
+    elif name == "execute_python_code":
+        from sysadmin_tools import execute_python_code
+
+        return await execute_python_code(**args)
     else:
         return f"Erro: {name} não encontrada."

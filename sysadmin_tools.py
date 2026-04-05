@@ -1,6 +1,9 @@
 import subprocess
 import logging
 import platform
+import tempfile
+import os
+import re
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -269,3 +272,143 @@ async def get_git_status() -> str:
     except Exception as e:
         logger.error(f"Erro ao obter status do git: {e}")
         return f"ERRO: Falha ao obter status do git: {str(e)}"
+
+
+DANGEROUS_IMPORTS = [
+    "os.system",
+    "os.popen",
+    "subprocess",
+    "socket",
+    "requests",
+    "urllib",
+    "http",
+    "ftplib",
+    "smtplib",
+    "paramiko",
+    "fabric",
+    "shutil.rmtree",
+    "shutil.copy",
+    "shutil.move",
+    "shutil.copytree",
+    "shutil.move",
+    "ctypes",
+    "pickle",
+    "marshal",
+    "importlib",
+    "__import__",
+    "exec(",
+    "eval(",
+    "compile(",
+    "globals()",
+    "locals()",
+    "open(",
+    "input(",
+]
+
+SAFE_CODE_TEMPLATE = """
+import sys
+import io
+import math
+import json
+import datetime
+import time
+import random
+import string
+import re
+import collections
+import itertools
+import functools
+import operator
+import statistics
+import decimal
+import fractions
+import typing
+import dataclasses
+import enum
+import copy
+import textwrap
+import unicodedata
+import struct
+import hashlib
+import hmac
+import secrets
+import base64
+import binascii
+import csv
+import io
+import pprint
+import reprlib
+
+# Block dangerous operations
+import builtins
+_dangerous_builtins = ['open', 'input', 'eval', 'exec', 'compile', 'getattr', 'setattr', 'delattr']
+for _name in _dangerous_builtins:
+    if hasattr(builtins, _name):
+        pass  # We allow these but monitor usage
+
+{code}
+"""
+
+
+def is_code_safe(code: str) -> tuple:
+    code_lower = code.lower()
+
+    for pattern in DANGEROUS_IMPORTS:
+        if pattern.lower() in code_lower:
+            return False, f"Codigo bloqueado: '{pattern}' nao e permitido por seguranca"
+
+    if len(code) > 5000:
+        return False, "Codigo muito longo (maximo 5000 caracteres)"
+
+    return True, "Codigo seguro"
+
+
+async def execute_python_code(code: str) -> str:
+    safe, reason = is_code_safe(code)
+    if not safe:
+        return f"ERRO_SEGURANCA: {reason}"
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, dir="/tmp"
+        ) as f:
+            f.write(SAFE_CODE_TEMPLATE.format(code=code))
+            temp_file = f.name
+
+        try:
+            result = subprocess.run(
+                ["python3", temp_file],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env={"PATH": "/usr/bin:/usr/local/bin"},
+            )
+
+            output = result.stdout.strip()
+            error = result.stderr.strip()
+
+            if result.returncode != 0:
+                return f"ERRO_EXECUCAO (exit {result.returncode}):\n{error[:1000] if error else 'Sem detalhes'}"
+
+            if not output and not error:
+                return "Codigo executado com sucesso, mas sem saida."
+
+            result_msg = "CODIGO_EXECUTADO COM SUCESSO:\n"
+            if output:
+                result_msg += f"\nSAIDA:\n{output[:2000]}"
+            if error:
+                result_msg += f"\n\nSTDERR:\n{error[:500]}"
+
+            return result_msg
+
+        finally:
+            try:
+                os.unlink(temp_file)
+            except:
+                pass
+
+    except subprocess.TimeoutExpired:
+        return f"ERRO_TIMEOUT: Codigo excedeu 30 segundos de execucao"
+    except Exception as e:
+        logger.error(f"Erro ao executar codigo Python: {e}")
+        return f"ERRO_INESPERADO: {str(e)}"

@@ -30,7 +30,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         "1. Use tools diretamente via 'tool_calls' quando necessário. NUNCA mostre JSON no chat.\n"
         f"2. Se for agendar para este canal, o ID é '{channel_id}'.\n"
         "3. Responda SEMPRE em Português Brasileiro (pt-BR). Nunca responda em English ou outro idioma.\n"
-        "4. NUNCA invente informações, links, resultados de comandos ou notícias. Se não tiver certeza, diga que não sabe.\n"
+        "4. NUNCA invente informações, links, resultados de comandos, código ou notícias. Se não tiver certeza, diga que não sabe.\n"
         "5. Ao usar web_search, apresenta APENAS os resultados reais retornados pela ferramenta. Não adiciona nem altere informações.\n"
         "6. Links devem ser copiados exatamente como retornados pela ferramenta de busca.\n"
         "7. SE o usuário pedir para executar comandos do sistema (como 'ls', 'df', 'uptime', 'git status', 'ps', etc), você DEVE usar a ferramenta 'run_sysadmin_command' com o comando exato. NUNCA invente a saída de um comando.\n"
@@ -38,8 +38,9 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         "9. Para verificar status de serviços, use 'get_service_status'.\n"
         "10. Para ver logs, use 'get_recent_logs'.\n"
         "11. Para ver status do git, use 'get_git_status'.\n"
-        "12. NUNCA finja que executou um comando. SEMPRE use as ferramentas disponíveis.\n"
-        "13. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado."
+        "12. SE o usuário pedir para executar codigo Python, você DEVE usar a ferramenta 'execute_python_code'. NUNCA finja que executou codigo.\n"
+        "13. NUNCA finja que executou um comando ou codigo. SEMPRE use as ferramentas disponíveis.\n"
+        "14. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado."
     )
 
     if not get_memory(channel_id):
