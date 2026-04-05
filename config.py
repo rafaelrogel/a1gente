@@ -24,6 +24,7 @@ SMART_ROUTING_ENABLED = (
     os.environ.get("SMART_ROUTING_ENABLED", "true").lower() == "true"
 )
 FAST_MODEL = os.environ.get("FAST_MODEL") or "tinyllama"
+A1MBRA_CHANNEL = os.environ.get("A1MBRA_CHANNEL") or "C0123456789"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULED_TASKS_FILE = os.environ.get("SCHEDULED_TASKS_FILE") or os.path.join(

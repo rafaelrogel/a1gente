@@ -10,11 +10,18 @@ from config import (
     SLACK_BOT_USER_ID,
     MAX_MEMORY,
     MAX_ITERATIONS,
+    A1MBRA_CHANNEL,
 )
 from memory import update_memory, get_memory, clear_memory
 from ollama_client import call_ollama
 from tools import TOOLS, execute_tool
-from scheduler import scheduler, load_scheduled_tasks, add_task_to_scheduler
+from scheduler import (
+    scheduler,
+    load_scheduled_tasks,
+    add_task_to_scheduler,
+    add_job_scout_task,
+    is_job_scout_active,
+)
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 

@@ -38,6 +38,14 @@ REPORT_CONFIGS = {
     },
 }
 
+JOB_SCOUT_TASK = {
+    "id": "auto_job_scout",
+    "type": "job_scout",
+    "prompt": "Execute a busca automatica de vagas: use a ferramenta search_jobs e poste o resultado no canal #A1brella se houver novas vagas.",
+    "recurrence": "interval_6h",
+    "description": "Busca automatica de vagas a cada 6 horas",
+}
+
 
 def get_available_reports() -> List[Dict[str, str]]:
     return [
@@ -205,3 +213,53 @@ def list_active_reports() -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Erro ao listar relatorios ativos: {e}")
         return []
+
+
+def add_job_scout_task(run_scheduled_task, interval_hours: int = 6):
+    try:
+        task = JOB_SCOUT_TASK.copy()
+        task["recurrence"] = f"interval_{interval_hours}h"
+        task["interval_hours"] = interval_hours
+
+        scheduler.add_job(
+            run_scheduled_task,
+            "interval",
+            hours=interval_hours,
+            args=[task],
+            id=task["id"],
+            replace_existing=True,
+        )
+
+        tasks = load_scheduled_tasks()
+        existing = [t for t in tasks if t.get("id") != task["id"]]
+        existing.append(task)
+        save_scheduled_tasks(existing)
+
+        logger.info(f"Job Scout agendado a cada {interval_hours} horas")
+        return task
+    except Exception as e:
+        logger.error(f"Erro ao agendar job scout: {e}")
+        return None
+
+
+def remove_job_scout_task() -> bool:
+    try:
+        scheduler.remove_job("auto_job_scout")
+
+        tasks = load_scheduled_tasks()
+        tasks = [t for t in tasks if t.get("id") != "auto_job_scout"]
+        save_scheduled_tasks(tasks)
+
+        logger.info("Job Scout removido do scheduler")
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao remover job scout: {e}")
+        return False
+
+
+def is_job_scout_active() -> bool:
+    try:
+        tasks = load_scheduled_tasks()
+        return any(t.get("id") == "auto_job_scout" for t in tasks)
+    except Exception:
+        return False
