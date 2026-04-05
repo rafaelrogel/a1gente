@@ -119,15 +119,29 @@ def add_task_to_scheduler(task: Dict[str, Any], run_scheduled_task):
                 logger.warning(
                     f"Could not parse time from recurrence: {task['recurrence']}"
                 )
-        else:
-            scheduler.add_job(
-                run_scheduled_task,
-                "interval",
-                minutes=60,
-                args=[task],
-                id=task["id"],
-                replace_existing=True,
-            )
+        elif "interval" in task.get("recurrence", "").lower():
+            interval_match = re.search(r"interval_(\d+)h", task["recurrence"])
+            if interval_match:
+                hours = int(interval_match.group(1))
+                scheduler.add_job(
+                    run_scheduled_task,
+                    "interval",
+                    hours=hours,
+                    args=[task],
+                    id=task["id"],
+                    replace_existing=True,
+                )
+                logger.info(f"Tarefa {task['id']} agendada: a cada {hours} horas.")
+            else:
+                scheduler.add_job(
+                    run_scheduled_task,
+                    "interval",
+                    minutes=60,
+                    args=[task],
+                    id=task["id"],
+                    replace_existing=True,
+                )
+                logger.info(f"Tarefa {task['id']} agendada: a cada 60 minutos.")
     except Exception as e:
         logger.error(f"Erro ao adicionar tarefa ao scheduler: {e}")
 
