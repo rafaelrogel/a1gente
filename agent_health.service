@@ -1,0 +1,10 @@
+[Unit]
+Description=Agent Health Check
+
+[Service]
+Type=oneshot
+ExecStart=/root/a1gente/venv/bin/python /root/a1gente/health_check.py
+User=root
+
+[Install]
+WantedBy=multi-user.target
