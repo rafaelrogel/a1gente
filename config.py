@@ -12,8 +12,8 @@ OLLAMA_URL = (
     or "http://localhost:11434"
 )
 MODEL_NAME = os.environ.get("MODEL_NAME") or os.environ.get("MODEL") or "llama3.2:3b"
-OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX") or 3072)
-OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT") or 600.0)
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX") or 2048)
+OLLAMA_TIMEOUT = float(os.environ.get("OLLAMA_TIMEOUT") or 120.0)
 MAX_MEMORY = int(os.environ.get("MAX_MEMORY") or 10)
 MAX_ITERATIONS = int(os.environ.get("MAX_ITERATIONS") or 3)
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
