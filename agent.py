@@ -172,6 +172,15 @@ async def handle_messages(event, say):
         if event.get("bot_id"):
             return
         text = event.get("text", "")
+        files = event.get("files", [])
+
+        if files:
+            await app.client.chat_postMessage(
+                channel=event.get("channel"),
+                text="Desculpe, este modelo de IA não suporta entrada de imagens. Posso ajudar com texto, comandos do sistema, execução de código Python, geração de imagens, clima, tradução, notas, lembretes e muito mais!",
+            )
+            return
+
         if text:
             user_id = event.get("user")
             await run_agent(event.get("channel"), text, user_id=user_id)
