@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = AsyncApp(token=SLACK_BOT_TOKEN)
 
 
-async def run_agent(channel_id: str, user_text: str):
+async def run_agent(channel_id: str, user_text: str, user_id: str = None):
     instructions = (
         "Você é o Nordic-Claw, assistente Slack. REGRAS CRÍTICAS:\n"
         "1. Use tools diretamente via 'tool_calls' quando necessário. NÃO mostre JSON no chat.\n"
@@ -32,11 +32,28 @@ async def run_agent(channel_id: str, user_text: str):
         "3. Responda SEMPRE em Português Brasileiro (pt-BR). Nunca responda em English ou outro idioma.\n"
         "4. NUNCA invente informações, links ou notícias. Se não tiver certeza, diga que não sabe.\n"
         "5. Ao usar web_search, apresenta APENAS os resultados reais retornados pela ferramenta. Não adiciona nem altere informações.\n"
-        "6. Links devem ser copiados exatamente como retornados pela ferramenta de busca."
+        "6. Links devem ser copiados exatamente como retornados pela ferramenta de busca.\n"
+        "7. Para comandos de administração do sistema, use as ferramentas de sysadmin disponíveis.\n"
+        "8. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado."
     )
 
     if not get_memory(channel_id):
         update_memory(channel_id, "system", instructions, max_memory=MAX_MEMORY)
+
+    if user_id:
+        try:
+            from long_term_memory import get_memory_context_for_user
+
+            ltm_context = get_memory_context_for_user(user_id)
+            if ltm_context:
+                update_memory(
+                    channel_id,
+                    "system",
+                    f"Contexto de memória de longo prazo para o usuário:\n{ltm_context}",
+                    max_memory=MAX_MEMORY,
+                )
+        except Exception as e:
+            logger.warning(f"Erro ao carregar memória de longo prazo: {e}")
 
     update_memory(channel_id, "user", user_text, max_memory=MAX_MEMORY)
 
@@ -139,7 +156,8 @@ async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
 async def handle_mentions(event, say):
     text = event.get("text", "").replace(f"<@{SLACK_BOT_USER_ID}>", "").strip()
     if text:
-        await run_agent(event.get("channel"), text)
+        user_id = event.get("user")
+        await run_agent(event.get("channel"), text, user_id=user_id)
 
 
 @app.event("message")
@@ -149,7 +167,8 @@ async def handle_messages(event, say):
             return
         text = event.get("text", "")
         if text:
-            await run_agent(event.get("channel"), text)
+            user_id = event.get("user")
+            await run_agent(event.get("channel"), text, user_id=user_id)
 
 
 async def main():

@@ -401,6 +401,189 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_sysadmin_command",
+            "description": "Executes a safe system command on the VPS for diagnostics (disk, memory, uptime, git status, etc).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The system command to run (e.g., 'df -h', 'free -m', 'uptime', 'git status')",
+                    },
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_system_status",
+            "description": "Gets a comprehensive system status report (hostname, uptime, CPU, memory, disk, load).",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_service_status",
+            "description": "Gets the status of a specific system service.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service_name": {
+                        "type": "string",
+                        "description": "Name of the service to check (e.g., 'a1gente', 'ollama', 'docker')",
+                    },
+                },
+                "required": ["service_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_recent_logs",
+            "description": "Gets recent logs from the a1gente service.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lines": {
+                        "type": "integer",
+                        "description": "Number of log lines to retrieve (default: 20, max: 100)",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_git_status",
+            "description": "Gets the git status, recent commits, and current branch of the project.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_user_preference",
+            "description": "Stores a user preference for long-term memory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The Slack user ID",
+                    },
+                    "key": {
+                        "type": "string",
+                        "description": "Preference key (e.g., 'language', 'timezone', 'name')",
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "Preference value",
+                    },
+                },
+                "required": ["user_id", "key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_preference",
+            "description": "Retrieves a stored user preference.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "description": "The Slack user ID",
+                    },
+                    "key": {
+                        "type": "string",
+                        "description": "Preference key to retrieve",
+                    },
+                },
+                "required": ["user_id", "key"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_important_fact",
+            "description": "Stores an important fact for long-term reference.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "fact": {
+                        "type": "string",
+                        "description": "The important fact to store",
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Category for the fact (e.g., 'project', 'team', 'technical')",
+                    },
+                },
+                "required": ["fact"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_important_facts",
+            "description": "Searches stored important facts.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query for facts",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_daily_report",
+            "description": "Schedules an automated daily report to be posted in a Slack channel.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "report_type": {
+                        "type": "string",
+                        "description": "Type of report: 'daily_briefing', 'morning_news', 'evening_summary', 'weekly_report'",
+                    },
+                    "channel": {
+                        "type": "string",
+                        "description": "Slack channel ID to post the report",
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "Time to post the report (e.g., '09:00', '18h30')",
+                    },
+                },
+                "required": ["report_type", "channel"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_available_reports",
+            "description": "Lists all available automated report types that can be scheduled.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
 ]
 
 
@@ -421,7 +604,7 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 • `resuma [texto ou URL]` - Resumir conteúdo
 
 🌤️ *CLIMA*
-• `qual o clima em [cidade]?` - Ver天气预报
+• `qual o clima em [cidade]?` - Ver previsão do tempo
 
 🌐 *TRADUÇÃO*
 • `traduza "[texto]" para [idioma]` - Traduzir texto
@@ -441,22 +624,40 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 📊 *GITHUB*
 • `mostre atividade do github [owner/repo]` - Ver PRs e issues
 
+🖼️ *GERAÇÃO DE IMAGENS*
+• `gere uma imagem: [descrição] [largura X altura]` - Gerar imagem (ex: `gere uma imagem: gato de óculos de sol na praia 512x512`)
+
 🔄 *MODELOS DE IA*
 • `mude para [modelo]` - Trocar modelo (tinyllama, granite3.1-moe, qwen2.5:1.5b, llama3.2:3b)
 • `qual modelo estamos usando?` - Ver modelo atual
 • `liste os modelos disponíveis` - Ver todos
+• *Roteamento inteligente*: Uso automático de modelo rápido para perguntas simples
 
-📅 *TAREFAS AGENDADAS*
-• `agende [ação] todo dia às [hora]` - Criar tarefa recorrente
+🖥️ *ADMINISTRAÇÃO DO SISTEMA*
+• `status do sistema` - Ver status completo (CPU, RAM, disco, uptime)
+• `status do serviço [nome]` - Ver status de um serviço (ex: a1gente, ollama, docker)
+• `execute comando [comando]` - Executar comando seguro (ex: df -h, free -m, uptime)
+• `logs recentes [N]` - Ver logs recentes do serviço (ex: logs recentes 20)
+• `status do git` - Ver status do git, branch e commits recentes
 
-    💬 *OUTROS*
-    • `crie um post de blog: título [X], conteúdo [Y]`
-    • `envie DM para [user_id]: [mensagem]`
-    • `gere uma imagem: [descrição] [largura X altura]` - Gerar imagem (ex: `gere uma imagem: gato de óculos de sol na praia 512x512`)
+🧠 *MEMÓRIA DE LONGO PRAZO*
+• `lembre que [fato]` - Armazenar fato importante para referência futura
+• `busque na memória [termo]` - Buscar fatos armazenados
+• `salve minha preferência [chave] = [valor]` - Salvar preferência pessoal
+• `qual minha preferência [chave]?` - Ver preferência salva
 
-    ━━━━━━━━━━━━━━━━━━━━━━
+📅 *RELATÓRIOS AUTOMÁTICOS*
+• `agende relatório [tipo] às [hora]` - Agendar relatório automático
+• `tipos de relatório` - Ver tipos disponíveis (daily_briefing, morning_news, evening_summary, weekly_report)
+• `agende daily_briefing todo dia às 09:00` - Exemplo de agendamento
 
-    💡 *Dica:* Seja específico para melhores resultados!"""
+💬 *OUTROS*
+• `crie um post de blog: título [X], conteúdo [Y]`
+• `envie DM para [user_id]: [mensagem]`
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *Dica:* Seja específico para melhores resultados!"""
 
 
 async def read_slack_message(text: str) -> str:
@@ -592,5 +793,81 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         from image_gen import generate_image
 
         return await generate_image(**args)
+    elif name == "run_sysadmin_command":
+        from sysadmin_tools import run_sysadmin_command
+
+        return await run_sysadmin_command(**args)
+    elif name == "get_system_status":
+        from sysadmin_tools import get_system_status
+
+        return await get_system_status()
+    elif name == "get_service_status":
+        from sysadmin_tools import get_service_status
+
+        return await get_service_status(**args)
+    elif name == "get_recent_logs":
+        from sysadmin_tools import get_recent_logs
+
+        return await get_recent_logs(**args)
+    elif name == "get_git_status":
+        from sysadmin_tools import get_git_status
+
+        return await get_git_status()
+    elif name == "store_user_preference":
+        from long_term_memory import store_user_preference
+
+        result = store_user_preference(**args)
+        if result:
+            return f"Preferencia armazenada com sucesso: {args.get('key')} = {args.get('value')}"
+        return "Erro ao armazenar preferencia."
+    elif name == "get_user_preference":
+        from long_term_memory import get_user_preference
+
+        value = get_user_preference(
+            args.get("user_id"), args.get("key"), "Nao encontrada"
+        )
+        return f"Preferencia '{args.get('key')}': {value}"
+    elif name == "store_important_fact":
+        from long_term_memory import store_important_fact
+
+        result = store_important_fact(
+            args.get("fact"),
+            args.get("category", "general"),
+            args.get("source", "user"),
+        )
+        if result:
+            return f"Fato importante armazenado: {args.get('fact')[:100]}"
+        return "Erro ao armazenar fato."
+    elif name == "search_important_facts":
+        from long_term_memory import search_important_facts
+
+        facts = search_important_facts(args.get("query", ""), 5)
+        if facts:
+            msg = "🔍 *Fatos Encontrados:*\n\n"
+            for f in facts:
+                msg += f"• {f['fact']} (categoria: {f['category']})\n"
+            return msg
+        return f"Nenhum fato encontrado para: {args.get('query', '')}"
+    elif name == "schedule_daily_report":
+        from scheduler import add_report_to_scheduler
+
+        task = add_report_to_scheduler(
+            args.get("report_type"),
+            args.get("channel"),
+            args.get("time"),
+        )
+        if task:
+            return f"Relatorio agendado com sucesso!\n• Tipo: {task.get('report_type')}\n• Canal: {task.get('channel')}\n• Horario: {task.get('recurrence')}"
+        return "Erro ao agendar relatorio."
+    elif name == "list_available_reports":
+        from scheduler import get_available_reports
+
+        reports = get_available_reports()
+        if reports:
+            msg = "📋 *Relatórios Disponíveis:*\n\n"
+            for r in reports:
+                msg += f"• *{r['name']}*: {r['description']}\n  Horário padrão: {r['default_time']}\n\n"
+            return msg
+        return "Nenhum relatório disponível."
     else:
         return f"Erro: {name} não encontrada."

@@ -20,6 +20,11 @@ OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
+SMART_ROUTING_ENABLED = (
+    os.environ.get("SMART_ROUTING_ENABLED", "true").lower() == "true"
+)
+FAST_MODEL = os.environ.get("FAST_MODEL") or "tinyllama"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEDULED_TASKS_FILE = os.environ.get("SCHEDULED_TASKS_FILE") or os.path.join(
     BASE_DIR, "scheduled_tasks.json"
