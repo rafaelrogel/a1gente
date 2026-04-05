@@ -12,33 +12,59 @@ logger = logging.getLogger(__name__)
 DB_PATH = f"{BASE_DIR}/job_scout.db"
 
 USER_PROFILE = {
+    "name": "Rafael & Pedro Job Search",
     "target_titles": [
+        "Product Designer",
+        "UX Designer",
+        "UX/UI Designer",
+        "UI Designer",
+        "Localization Specialist",
+        "Localization Manager",
         "Brazilian Portuguese Translator",
         "Brazilian Portuguese Localizer",
         "Translation Project Manager",
-        "UX Designer",
-        "Localization Specialist",
-        "Translation Coordinator",
-        "Portuguese Linguist",
-        "UX Writer",
         "Content Localizer",
+        "UX Writer",
+        "L10n Specialist",
     ],
-    "locations": ["Brazil", "Europe", "Remote"],
+    "locations": ["Brazil", "Europe", "Remote", "Portugal", "Spain", "Ireland", "USA"],
     "keywords": [
         "Brazilian Portuguese",
+        "Portuguese (BR)",
         "UX",
         "UX Design",
+        "UI Design",
+        "Product Design",
         "Localization",
+        "L10n",
         "Translation",
+        "Fintech",
+        "Crypto",
+        "Web3",
+        "Figma",
+        "Design Systems",
     ],
-    "priority_companies": [],
+    "priority_companies": [
+        "Revolut",
+        "Nubank",
+        "Wise",
+        "Stripe",
+        "Block",
+        "Coinbase",
+        "Binance",
+        "Kraken",
+    ],
     "avoid_companies": [],
 }
 
 SEARCH_QUERIES = [
+    "Product Designer jobs Brazil remote",
+    "UX Designer Brazilian Portuguese jobs",
+    "Localization Specialist Portuguese remote",
+    "Fintech Product Designer jobs",
     "Brazilian Portuguese translator remote jobs",
-    "Localization specialist Portuguese jobs",
-    "UX Designer Brazilian Portuguese",
+    "Crypto localization jobs",
+    "UI Designer jobs Europe remote",
 ]
 
 
