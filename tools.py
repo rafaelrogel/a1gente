@@ -664,13 +664,13 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "enable_auto_job_scout",
-            "description": "Enables automatic job searching every 6 hours.",
+            "description": "Ativa a busca automatica de vagas a cada 6 horas. USE esta funcao quando o usuario pedir para ativar busca automatica de vagas.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "hours": {
                         "type": "integer",
-                        "description": "Interval in hours between searches (default: 6, max: 24).",
+                        "description": "Intervalo em horas entre buscas (padrao: 6).",
                     },
                 },
             },
