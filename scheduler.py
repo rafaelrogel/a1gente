@@ -67,19 +67,21 @@ def get_report_prompt(report_type: str) -> Optional[str]:
 
 def load_scheduled_tasks() -> List[Dict[str, Any]]:
     if not SCHEDULED_TASKS_FILE:
-        return []
-    if isinstance(SCHEDULED_TASKS_FILE, str) and not SCHEDULED_TASKS_FILE:
+        logger.warning("SCHEDULED_TASKS_FILE não configurado")
         return []
     try:
-        if isinstance(SCHEDULED_TASKS_FILE, str) and not os.path.exists(
-            SCHEDULED_TASKS_FILE
-        ):
+        if not os.path.exists(SCHEDULED_TASKS_FILE):
+            logger.info(f"Criando arquivo de tarefas: {SCHEDULED_TASKS_FILE}")
             return []
-    except Exception:
+    except Exception as e:
+        logger.error(f"Erro ao verificar arquivo de tarefas: {e}")
         return []
     try:
         with open(SCHEDULED_TASKS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
+    except json.JSONDecodeError as e:
+        logger.error(f"Arquivo de tarefas corrompido: {e}")
+        return []
     except Exception as e:
         logger.error(f"Erro ao carregar tarefas agendadas: {e}")
         return []
@@ -120,9 +122,12 @@ def add_task_to_scheduler(task: Dict[str, Any], run_scheduled_task):
                     f"Could not parse time from recurrence: {task['recurrence']}"
                 )
         elif "interval" in task.get("recurrence", "").lower():
-            interval_match = re.search(r"interval_(\d+)h", task["recurrence"])
-            if interval_match:
-                hours = int(interval_match.group(1))
+            # Support both hours (interval_6h) and minutes (interval_30m)
+            hours_match = re.search(r"interval_(\d+)h", task["recurrence"])
+            mins_match = re.search(r"interval_(\d+)m", task["recurrence"])
+
+            if hours_match:
+                hours = int(hours_match.group(1))
                 scheduler.add_job(
                     run_scheduled_task,
                     "interval",
@@ -132,7 +137,21 @@ def add_task_to_scheduler(task: Dict[str, Any], run_scheduled_task):
                     replace_existing=True,
                 )
                 logger.info(f"Tarefa {task['id']} agendada: a cada {hours} horas.")
+            elif mins_match:
+                minutes = int(mins_match.group(1))
+                scheduler.add_job(
+                    run_scheduled_task,
+                    "interval",
+                    minutes=minutes,
+                    args=[task],
+                    id=task["id"],
+                    replace_existing=True,
+                )
+                logger.info(f"Tarefa {task['id']} agendada: a cada {minutes} minutos.")
             else:
+                logger.warning(
+                    f"Formato de intervalo nao reconhecido: {task['recurrence']}"
+                )
                 scheduler.add_job(
                     run_scheduled_task,
                     "interval",
@@ -141,7 +160,9 @@ def add_task_to_scheduler(task: Dict[str, Any], run_scheduled_task):
                     id=task["id"],
                     replace_existing=True,
                 )
-                logger.info(f"Tarefa {task['id']} agendada: a cada 60 minutos.")
+                logger.info(
+                    f"Tarefa {task['id']} agendada: a cada 60 minutos (fallback)."
+                )
     except Exception as e:
         logger.error(f"Erro ao adicionar tarefa ao scheduler: {e}")
 
@@ -206,14 +227,26 @@ def add_report_to_scheduler(
 
 def remove_report_from_scheduler(task_id: str) -> bool:
     try:
-        scheduler.remove_job(task_id)
+        # Try to remove from scheduler, but don't fail if job doesn't exist
+        try:
+            scheduler.remove_job(task_id)
+            logger.info(f"Job {task_id} removido do scheduler")
+        except Exception as sched_err:
+            logger.warning(f"Job {task_id} não encontrado no scheduler: {sched_err}")
 
+        # Always update the JSON file
         tasks = load_scheduled_tasks()
+        original_count = len(tasks)
         tasks = [t for t in tasks if t.get("id") != task_id]
-        save_scheduled_tasks(tasks)
 
-        logger.info(f"Relatorio {task_id} removido do scheduler")
-        return True
+        if len(tasks) < original_count:
+            save_scheduled_tasks(tasks)
+            logger.info(f"Relatorio {task_id} removido do arquivo de tarefas")
+            return True
+        else:
+            logger.warning(f"Relatorio {task_id} não encontrado no arquivo de tarefas")
+            return False
+
     except Exception as e:
         logger.error(f"Erro ao remover relatorio do scheduler: {e}")
         return False

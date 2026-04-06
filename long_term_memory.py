@@ -176,22 +176,35 @@ def store_important_fact(
 
 
 def get_important_facts(
-    category: Optional[str] = None, limit: int = 10
+    category: Optional[str] = None, limit: int = 10, user_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        if category:
-            cursor.execute(
-                "SELECT * FROM important_facts WHERE category = ? ORDER BY created_at DESC LIMIT ?",
-                (category, limit),
-            )
+        if user_id:
+            # Filter by user_id if provided
+            if category:
+                cursor.execute(
+                    "SELECT * FROM important_facts WHERE category = ? AND source = ? ORDER BY created_at DESC LIMIT ?",
+                    (category, user_id, limit),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM important_facts WHERE source = ? ORDER BY created_at DESC LIMIT ?",
+                    (user_id, limit),
+                )
         else:
-            cursor.execute(
-                "SELECT * FROM important_facts ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            )
+            if category:
+                cursor.execute(
+                    "SELECT * FROM important_facts WHERE category = ? ORDER BY created_at DESC LIMIT ?",
+                    (category, limit),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM important_facts ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
 
         facts = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -206,14 +219,17 @@ def search_important_facts(query: str, limit: int = 5) -> List[Dict[str, Any]]:
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Escape LIKE wildcards to prevent wildcard injection
+        safe_query = query.replace("%", "\\%").replace("_", "\\_")
+
         cursor.execute(
             """
             SELECT * FROM important_facts 
-            WHERE fact LIKE ? 
+            WHERE fact LIKE ? ESCAPE '\\'
             ORDER BY created_at DESC 
             LIMIT ?
         """,
-            (f"%{query}%", limit),
+            (f"%{safe_query}%", limit),
         )
 
         facts = [dict(row) for row in cursor.fetchall()]
@@ -387,7 +403,8 @@ def get_memory_context_for_user(user_id: str) -> str:
             f"Preferencias do usuario: {json.dumps(preferences, ensure_ascii=False)}"
         )
 
-    recent_facts = get_important_facts(limit=5)
+    # Filter facts by user_id to avoid leaking context between users
+    recent_facts = get_important_facts(limit=5, user_id=user_id)
     if recent_facts:
         facts_text = "\n".join(
             [f"- {f['fact']} (categoria: {f['category']})" for f in recent_facts]
@@ -400,4 +417,23 @@ def get_memory_context_for_user(user_id: str) -> str:
     return ""
 
 
-init_db()
+# Initialize database only when first accessed, not at module import
+_db_initialized = False
+
+
+def ensure_db_initialized():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            init_db()
+            _db_initialized = True
+        except Exception as e:
+            logger.error(f"Erro ao inicializar banco de dados: {e}")
+            raise
+
+
+# Initialize on import (but wrapped in try-except)
+try:
+    init_db()
+except Exception as e:
+    logger.warning(f"Database initialization deferred: {e}")
