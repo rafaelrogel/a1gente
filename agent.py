@@ -130,6 +130,12 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
 
             update_memory(channel_id, "tool", str(res), max_memory=MAX_MEMORY)
 
+    # Fallback: se atingir MAX_ITERATIONS sem resposta, enviar mensagem
+    await app.client.chat_postMessage(
+        channel=channel_id,
+        text="⚠️ Desculpe, não consegui completar a requisição. Tente novamente com uma mensagem mais simples.",
+    )
+
 
 async def run_scheduled_task(task: Dict[str, Any]):
     from datetime import datetime
