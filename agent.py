@@ -115,7 +115,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         if not tool_calls:
             if content:
                 await app.client.chat_postMessage(channel=channel_id, text=content)
-            break
+            return
 
         for tc in tool_calls:
             fn = tc["function"]["name"]
