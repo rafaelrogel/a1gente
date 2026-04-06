@@ -1,4 +1,5 @@
 import logging
+import tweepy
 from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,6 @@ def get_twitter_client():
         return _twitter_client
 
     try:
-        import tweepy
         from config import (
             TWITTER_API_KEY,
             TWITTER_API_SECRET,
@@ -55,7 +55,6 @@ def get_twitter_client_v1():
         return _twitter_client_v1
 
     try:
-        import tweepy
         from config import (
             TWITTER_API_KEY,
             TWITTER_API_SECRET,
