@@ -47,7 +47,9 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         "11. Para ver status do git, use 'get_git_status'.\n"
         "12. SE o usuário pedir para executar codigo Python, você DEVE usar a ferramenta 'execute_python_code'. NUNCA finja que executou codigo.\n"
         "13. NUNCA finja que executou um comando ou codigo. SEMPRE use as ferramentas disponíveis.\n"
-        "14. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado."
+        "14. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado.\n"
+        "15. Quando o usuário pedir posts de um subreddit e não encontrar, SEJA PROATIVO: tente variações do nome (ex: sem 'Brasil', com 'r/', etc) ou use search_reddit para buscar o subreddit primeiro.\n"
+        "16. Quando job search não encontrar vagas, tente outras keywords ou synonyms.\n"
     )
 
     if not get_memory(channel_id):
