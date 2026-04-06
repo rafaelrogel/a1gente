@@ -37,7 +37,6 @@ MODEL_PROFILES = {
 }
 
 COMPLEXITY_KEYWORDS = [
-    COMPLEXITY_KEYWORDS = [
     "analise",
     "resuma",
     "resumo",
@@ -118,9 +117,14 @@ def analyze_query_complexity(query: str) -> str:
 
 def get_model_for_complexity(
     complexity: str,
-    current_model: str = MODEL_NAME,
+    current_model: str = None,
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
+    if current_model is None:
+        from config import MODEL_NAME
+
+        current_model = MODEL_NAME["value"]
+
     if tools:
         # Prefer current model if it supports tools
         for profile in MODEL_PROFILES.values():
@@ -142,7 +146,7 @@ async def call_ollama(
     smart_routing: bool = True,
 ) -> Dict[str, Any]:
     if model is None:
-        model = MODEL_NAME
+        model = MODEL_NAME["value"]
 
     if smart_routing and messages:
         last_user_msg = ""
@@ -210,7 +214,8 @@ async def call_ollama(
 
 
 async def switch_model(new_model: str) -> str:
-    global MODEL_NAME
+    from config import MODEL_NAME as config_model
+
     try:
         url = f"{OLLAMA_URL}/api/tags"
         async with httpx.AsyncClient() as client:
@@ -219,7 +224,7 @@ async def switch_model(new_model: str) -> str:
                 data = response.json()
                 available_models = [m["name"] for m in data.get("models", [])]
                 if new_model in available_models:
-                    MODEL_NAME = new_model
+                    config_model["value"] = new_model
                     return f"✅ Modelo alterado para: {new_model}"
                 else:
                     return f"❌ Modelo '{new_model}' não encontrado. Modelos disponíveis: {', '.join(available_models)}"
@@ -245,10 +250,10 @@ async def list_available_models() -> str:
                     name = m["name"]
                     size = m.get("size", 0)
                     size_gb = size / (1024**3) if size else 0
-                    marker = "⭐" if name == MODEL_NAME else "  "
+                    marker = "⭐" if name == MODEL_NAME["value"] else "  "
                     result += f"{marker} `{name}` ({size_gb:.1f} GB)\n"
 
-                result += f"\n🔄 *Modelo atual:* `{MODEL_NAME}`"
+                result += f"\n🔄 *Modelo atual:* `{MODEL_NAME['value']}`"
                 return result
             else:
                 return f"❌ Erro ao listar modelos: {response.status_code}"

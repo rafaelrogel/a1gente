@@ -44,16 +44,33 @@ async def _send_reminder(
 ):
     try:
         message = f"🔔 *Lembrete:* {text}"
-        result = await app.client.conversations_open(users=user_id)
-        dm_channel = result["channel"]["id"]
-        await app.client.chat_postMessage(channel=dm_channel, text=message)
+
+        try:
+            result = await app.client.conversations_open(users=user_id)
+            dm_channel = result["channel"]["id"]
+            await app.client.chat_postMessage(channel=dm_channel, text=message)
+        except Exception as slack_error:
+            logger.error(
+                f"Erro ao enviar lembrete via Slack para {user_id}: {slack_error}"
+            )
+            if channel_id:
+                try:
+                    await app.client.chat_postMessage(
+                        channel=channel_id,
+                        text=f"⚠️ Não foi possível enviar DM. Lembrete: {text}",
+                    )
+                except Exception as fallback_error:
+                    logger.error(
+                        f"Erro ao enviar fallback para canal {channel_id}: {fallback_error}"
+                    )
+            return
 
         reminders = _load_reminders()
         if reminder_id in reminders:
             del reminders[reminder_id]
             _save_reminders(reminders)
     except Exception as e:
-        logger.error(f"Erro ao enviar lembrete: {e}")
+        logger.error(f"Erro inesperado ao processar lembrete {reminder_id}: {e}")
 
 
 async def set_reminder(
@@ -69,6 +86,17 @@ async def set_reminder(
         channel_id: Canal opcional para resposta (vai para DM se não especificado)
     """
     try:
+        if not isinstance(minutes, (int, float)):
+            return "❌ Erro: minutos deve ser um número."
+
+        minutes = int(minutes)
+
+        if minutes < 1:
+            return "❌ Erro: o lembrete deve ser definido para pelo menos 1 minuto."
+
+        if minutes > 10080:
+            return "❌ Erro: o lembrete não pode ser definido para mais de 7 dias (10080 minutos)."
+
         reminder_id = f"reminder_{datetime.now().timestamp()}"
         run_time = datetime.now() + timedelta(minutes=minutes)
 

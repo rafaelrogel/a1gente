@@ -16,12 +16,12 @@ from memory import update_memory, get_memory, clear_memory
 from ollama_client import call_ollama
 from tools import TOOLS, execute_tool
 from scheduler import (
-    scheduler,
     load_scheduled_tasks,
     save_scheduled_tasks,
     add_task_to_scheduler,
     add_job_scout_task,
     is_job_scout_active,
+    start_scheduler,
 )
 from slack_bolt.async_app import AsyncApp
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
@@ -56,7 +56,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
     )
 
     if not get_memory(channel_id):
-        update_memory(channel_id, "system", instructions, max_memory=MAX_MEMORY)
+        await update_memory(channel_id, "system", instructions, max_memory=MAX_MEMORY)
 
     if user_id:
         try:
@@ -64,7 +64,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
 
             ltm_context = get_memory_context_for_user(user_id)
             if ltm_context:
-                update_memory(
+                await update_memory(
                     channel_id,
                     "system",
                     f"Contexto de memória de longo prazo para o usuário:\n{ltm_context}",
@@ -73,7 +73,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         except Exception as e:
             logger.warning(f"Erro ao carregar memória de longo prazo: {e}")
 
-    update_memory(channel_id, "user", user_text, max_memory=MAX_MEMORY)
+    await update_memory(channel_id, "user", user_text, max_memory=MAX_MEMORY)
 
     for i in range(MAX_ITERATIONS):
         logger.info(f"Iteração {i + 1} - Canal: {channel_id}")
@@ -104,7 +104,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
             except Exception as e:
                 logger.error(f"Unexpected error in fallback JSON parsing: {e}")
 
-        update_memory(
+        await update_memory(
             channel_id,
             "assistant",
             content,
@@ -135,7 +135,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
                 res = f"⚠️ Erro ao executar {fn}: {str(e)}"
                 await app.client.chat_postMessage(channel=channel_id, text=res)
 
-            update_memory(channel_id, "tool", str(res), max_memory=MAX_MEMORY)
+            await update_memory(channel_id, "tool", str(res), max_memory=MAX_MEMORY)
 
     # Fallback: se atingir MAX_ITERATIONS sem resposta, enviar mensagem
     await app.client.chat_postMessage(
@@ -212,7 +212,9 @@ async def handle_messages(event, say):
 
 
 async def main():
-    scheduler.start()
+    from scheduler import start_scheduler
+
+    start_scheduler()
     for t in load_scheduled_tasks():
         add_task_to_scheduler(t, run_scheduled_task)
     from reminders import init_scheduler

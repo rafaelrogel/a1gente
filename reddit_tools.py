@@ -1,10 +1,34 @@
 import httpx
 import logging
 import re
+import os
 from datetime import datetime
 from config import OLLAMA_TIMEOUT
 
 logger = logging.getLogger(__name__)
+
+MAX_CONTENT_LENGTH = 1000
+
+
+def _check_reddit_config() -> str | None:
+    """Check if Reddit configuration is available. Returns error message if not."""
+    return None
+
+
+def _clamp_limit(limit: int) -> int:
+    """Clamp limit to valid range (1-25)."""
+    try:
+        limit = int(limit)
+    except (ValueError, TypeError):
+        limit = 10
+    return max(1, min(25, limit))
+
+
+def _truncate_content(text: str, max_len: int = MAX_CONTENT_LENGTH) -> str:
+    """Truncate content to max length with ellipsis."""
+    if not text:
+        return ""
+    return text[:max_len] + "..." if len(text) > max_len else text
 
 
 async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> str:
@@ -15,6 +39,12 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
     Alternativas de sort: 'hot', 'new', 'top', 'rising'
     """
     try:
+        limit = _clamp_limit(limit)
+        subreddit = subreddit.strip().lower().replace("r/", "").replace("/", "")
+
+        if not subreddit:
+            return "❌ Nome do subreddit inválido."
+
         sort_param = {"hot": "hot", "new": "new", "top": "top", "rising": "rising"}.get(
             sort.lower(), "hot"
         )
@@ -36,7 +66,7 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
             )
 
             if response.status_code == 404:
-                return f"❌ Subreddit 'r/{subreddit}' não encontrado."
+                return f"⚠️ Subreddit não encontrado: r/{subreddit}"
             if response.status_code == 429:
                 return f"⚠️ Rate limit do Reddit atingido. Tente novamente em alguns minutos."
             if response.status_code != 200:
@@ -59,7 +89,7 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
                 if post_subreddit.lower() != subreddit.lower():
                     continue
 
-                title = post_data.get("title", "")[:80]
+                title = _truncate_content(post_data.get("title", ""), 80)
                 author = post_data.get("author", "[deleted]")
                 score = post_data.get("score", 0)
                 num_comments = post_data.get("num_comments", 0)
@@ -67,7 +97,7 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
                 permalink = post_data.get("permalink", "")
                 url = f"https://reddit.com{permalink}"
                 selftext = (
-                    post_data.get("selftext", "")[:100]
+                    _truncate_content(post_data.get("selftext", ""), 100)
                     if post_data.get("selftext")
                     else None
                 )
@@ -84,15 +114,17 @@ async def scrape_reddit(subreddit: str, sort: str = "hot", limit: int = 10) -> s
                     f"   👤 @{author} | 👍 {score} | 💬 {num_comments} | {time_str}"
                 )
                 if selftext:
-                    results.append(f"   📝 {selftext}...")
+                    results.append(f"   📝 {selftext}")
                 results.append(f"   🔗 {url}")
 
             if count == 0:
-                return f"Nenhum post encontrado em r/{subreddit}."
+                return f"⚠️ Subreddit não encontrado: r/{subreddit}"
 
             return "\n".join(results)
     except httpx.TimeoutException:
         return "⏳ Timeout ao acessar Reddit"
+    except httpx.ConnectError:
+        return "⚠️ Não foi possível conectar ao Reddit. Verifique sua conexão."
     except Exception as e:
         logger.error(f"Erro no scrape_reddit: {e}")
         return f"❌ Erro: {str(e)}"
@@ -103,6 +135,11 @@ async def search_reddit(query: str, limit: int = 10) -> str:
     Busca posts em todos os subreddits usando a API de busca do Reddit.
     """
     try:
+        limit = _clamp_limit(limit)
+
+        if not query or not query.strip():
+            return "❌ Termo de busca inválido."
+
         headers = {
             "User-Agent": "Mozilla/5.0 (compatible; NordicClawBot/1.0; +https://github.com/rafaelrogel/a1gente)"
         }
@@ -117,6 +154,8 @@ async def search_reddit(query: str, limit: int = 10) -> str:
 
             if response.status_code == 429:
                 return f"⚠️ Rate limit do Reddit atingido. Tente novamente mais tarde."
+            if response.status_code == 404:
+                return f"⚠️ Nenhum resultado encontrado para '{query}'."
             if response.status_code != 200:
                 return f"❌ Erro ao buscar no Reddit: {response.status_code}"
 
@@ -130,7 +169,7 @@ async def search_reddit(query: str, limit: int = 10) -> str:
 
             for i, post in enumerate(posts[:limit], 1):
                 post_data = post.get("data", {})
-                title = post_data.get("title", "")[:80]
+                title = _truncate_content(post_data.get("title", ""), 80)
                 subreddit = post_data.get("subreddit", "")
                 author = post_data.get("author", "[deleted]")
                 score = post_data.get("score", 0)
@@ -144,6 +183,8 @@ async def search_reddit(query: str, limit: int = 10) -> str:
             return "\n".join(results)
     except httpx.TimeoutException:
         return "⏳ Timeout ao buscar no Reddit"
+    except httpx.ConnectError:
+        return "⚠️ Não foi possível conectar ao Reddit. Verifique sua conexão."
     except Exception as e:
         logger.error(f"Erro no search_reddit: {e}")
         return f"❌ Erro: {str(e)}"

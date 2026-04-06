@@ -310,3 +310,12 @@ def is_job_scout_active() -> bool:
         return any(t.get("id") == "auto_job_scout" for t in tasks)
     except Exception:
         return False
+
+
+def start_scheduler():
+    """Start the scheduler if not already running."""
+    if not scheduler.running:
+        scheduler.start()
+        logger.info("Scheduler iniciado")
+    else:
+        logger.info("Scheduler já está rodando")

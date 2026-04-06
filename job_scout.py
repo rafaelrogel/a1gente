@@ -3,6 +3,7 @@ import json
 import logging
 import asyncio
 import hashlib
+import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from config import BASE_DIR
@@ -10,6 +11,8 @@ from config import BASE_DIR
 logger = logging.getLogger(__name__)
 
 DB_PATH = f"{BASE_DIR}/job_scout.db"
+SEEN_JOBS_FILE = f"{BASE_DIR}/seen_jobs.json"
+MAX_DESCRIPTION_LENGTH = 300
 
 USER_PROFILE = {
     "name": "Rafael & Pedro Job Search",
@@ -57,7 +60,7 @@ USER_PROFILE = {
     "avoid_companies": [],
 }
 
-SEARCH_QUERIES = [
+DEFAULT_SEARCH_QUERIES = [
     "Product Designer jobs Brazil remote",
     "UX Designer Brazilian Portuguese jobs",
     "Localization Specialist Portuguese remote",
@@ -68,13 +71,63 @@ SEARCH_QUERIES = [
 ]
 
 
+def get_search_queries() -> List[str]:
+    """Get search queries from config or use defaults."""
+    from config import OLLAMA_URL
+
+    custom_queries = os.environ.get("JOB_SCOUT_QUERIES", "")
+    if custom_queries:
+        queries = [q.strip() for q in custom_queries.split("|") if q.strip()]
+        if queries:
+            return queries
+
+    return DEFAULT_SEARCH_QUERIES
+
+
+def load_seen_jobs() -> set:
+    """Load seen job IDs from JSON file."""
+    try:
+        if os.path.exists(SEEN_JOBS_FILE):
+            with open(SEEN_JOBS_FILE, "r", encoding="utf-8") as f:
+                return set(json.load(f))
+    except Exception as e:
+        logger.warning(f"Erro ao carregar seen_jobs.json: {e}")
+    return set()
+
+
+def save_seen_jobs(seen_ids: set):
+    """Save seen job IDs to JSON file."""
+    try:
+        with open(SEEN_JOBS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(seen_ids), f)
+    except Exception as e:
+        logger.error(f"Erro ao salvar seen_jobs.json: {e}")
+
+
+def truncate_text(text: str, max_len: int = MAX_DESCRIPTION_LENGTH) -> str:
+    """Truncate text to max length with ellipsis."""
+    if not text:
+        return "N/A"
+    return text[:max_len] + "..." if len(text) > max_len else text
+
+
+def safe_get(job: Dict[str, Any], key: str, default: str = "N/A") -> str:
+    """Safely get a value from job dict, returning default if missing."""
+    value = job.get(key)
+    if value is None or not str(value).strip():
+        return default
+    return str(value).strip()
+
+
 async def search_jobs_and_score() -> List[Dict[str, Any]]:
     """Active job search: uses web search to find jobs, then scores them."""
     from tools import web_search
 
+    seen_job_ids = load_seen_jobs()
     all_jobs = []
+    queries = get_search_queries()
 
-    for query in SEARCH_QUERIES:
+    for query in queries:
         try:
             search_result = await asyncio.wait_for(web_search(query), timeout=30.0)
 
@@ -92,21 +145,48 @@ async def search_jobs_and_score() -> List[Dict[str, Any]]:
             continue
         except Exception as e:
             logger.error(f"Erro na busca '{query}': {e}")
+            continue
 
     scored_jobs = []
-    for job in all_jobs:
-        score = score_job_against_profile(job)
-        job["score"] = score["score"]
-        job["score_reason"] = score["reason"]
-        job["job_id"] = generate_job_id(job["title"], job["company"], job["url"])
+    new_seen_ids = set(seen_job_ids)
 
-        if job["score"] >= 40:
-            saved = save_job(job)
-            if saved:
-                scored_jobs.append(job)
-                logger.info(
-                    f"Nova vaga encontrada: {job['title']} (score: {job['score']})"
-                )
+    for job in all_jobs:
+        try:
+            score = score_job_against_profile(job)
+            job["score"] = score["score"]
+            job["score_reason"] = score["reason"]
+            job["job_id"] = generate_job_id(
+                safe_get(job, "title", ""),
+                safe_get(job, "company", ""),
+                safe_get(job, "url", ""),
+            )
+
+            # Skip if already seen
+            if job["job_id"] in seen_job_ids:
+                continue
+
+            new_seen_ids.add(job["job_id"])
+
+            if job["score"] >= 40:
+                # Apply safe_get for all required fields
+                job["title"] = safe_get(job, "title", "N/A")
+                job["company"] = safe_get(job, "company", "N/A")
+                job["location"] = safe_get(job, "location", "N/A")
+                job["url"] = safe_get(job, "url", "N/A")
+                job["description"] = truncate_text(safe_get(job, "description", ""))
+
+                saved = save_job(job)
+                if saved:
+                    scored_jobs.append(job)
+                    logger.info(
+                        f"Nova vaga encontrada: {job['title']} (score: {job['score']})"
+                    )
+        except Exception as e:
+            logger.error(f"Erro ao processar vaga: {e}")
+            continue
+
+    # Save updated seen jobs
+    save_seen_jobs(new_seen_ids)
 
     return scored_jobs
 
@@ -165,11 +245,11 @@ def parse_jobs_from_search(search_result: str, query: str) -> List[Dict[str, Any
 
 def score_job_against_profile(job: Dict[str, Any]) -> Dict[str, Any]:
     """Score a job against the user profile (0-100)."""
-    title = job.get("title", "").lower()
-    company = job.get("company", "").lower()
-    location = job.get("location", "").lower()
-    description = job.get("description", "").lower()
-    url = job.get("url", "").lower()
+    title = safe_get(job, "title", "").lower()
+    company = safe_get(job, "company", "").lower()
+    location = safe_get(job, "location", "").lower()
+    description = safe_get(job, "description", "").lower()
+    url = safe_get(job, "url", "").lower()
 
     all_text = f"{title} {company} {location} {description} {url}"
     score = 0
@@ -270,10 +350,10 @@ def save_job(job: Dict[str, Any]) -> bool:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 job_id,
-                job.get("title", ""),
-                job.get("company", ""),
-                job.get("location", ""),
-                job.get("url", ""),
+                job.get("title", "N/A"),
+                job.get("company", "N/A"),
+                job.get("location", "N/A"),
+                job.get("url", "N/A"),
                 job.get("description", ""),
                 job.get("score", 0),
                 job.get("score_reason", ""),
@@ -354,6 +434,63 @@ def get_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Erro ao obter estatisticas: {e}")
         return {}
+
+
+def format_job_message(jobs: List[Dict[str, Any]]) -> str:
+    """Format jobs for posting to Slack."""
+    if not jobs:
+        return ""
+
+    lines = [f"🔔 *{len(jobs)} nova(s) vaga(s) encontrada(s):*\n"]
+
+    for i, job in enumerate(jobs[:5], 1):
+        title = truncate_text(safe_get(job, "title", "N/A"), 60)
+        company = truncate_text(safe_get(job, "company", "N/A"), 40)
+        location = safe_get(job, "location", "N/A")
+        score = job.get("score", 0)
+        url = safe_get(job, "url", "N/A")
+
+        lines.append(f"{i}. *{title}*")
+        lines.append(f"   🏢 {company} | 📍 {location} | ⭐ {score}pts")
+        lines.append(f"   🔗 {url}\n")
+
+    return "\n".join(lines)
+
+
+def format_jobs_list(jobs: List[Dict[str, Any]]) -> str:
+    """Format a list of jobs for display."""
+    if not jobs:
+        return "Nenhuma vaga encontrada."
+
+    lines = ["📋 *Vagas Salvas:*\n"]
+
+    for i, job in enumerate(jobs, 1):
+        title = truncate_text(safe_get(job, "title", "N/A"), 50)
+        company = truncate_text(safe_get(job, "company", "N/A"), 30)
+        score = job.get("score", 0)
+        status = safe_get(job, "status", "new")
+        job_id = safe_get(job, "job_id", "")
+
+        status_emoji = "🆕" if status == "new" else "✅"
+        lines.append(f"{i}. {status_emoji} *{title}* ({score}pts)")
+        lines.append(f"   🏢 {company} | ID: `{job_id}`")
+
+    return "\n".join(lines)
+
+
+def format_stats_message(stats: Dict[str, Any]) -> str:
+    """Format stats for display."""
+    if not stats:
+        return "❌ Erro ao obter estatísticas."
+
+    return (
+        f"📊 *Estatísticas do Job Scout:*\n\n"
+        f"• Total de vagas: {stats.get('total', 0)}\n"
+        f"• Novas: {stats.get('new', 0)}\n"
+        f"• Candidatadas: {stats.get('applied', 0)}\n"
+        f"• Score médio: {stats.get('avg_score', 0)}\n"
+        f"• Score máximo: {stats.get('max_score', 0)}"
+    )
 
 
 init_db()

@@ -5,6 +5,9 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIMEOUT = 60
+MAX_PROMPT_LOG_LENGTH = 100
+
 
 async def generate_image(prompt: str, width: int = 512, height: int = 512) -> str:
     """
@@ -21,7 +24,13 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
     try:
         # Validate prompt
         if not prompt or not prompt.strip():
-            return "ERRO_GERACAO_IMAGEM: Prompt não pode estar vazio"
+            return "⚠️ Chave de API para geração de imagens não configurada."
+
+        # Log prompt for debugging (truncated)
+        prompt_preview = prompt[:MAX_PROMPT_LOG_LENGTH]
+        if len(prompt) > MAX_PROMPT_LOG_LENGTH:
+            prompt_preview += "..."
+        logger.info(f"Gerando imagem com prompt: {prompt_preview}")
 
         # Validate and correct dimensions - ensure we're working with integers
         try:
@@ -68,7 +77,7 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
                     # First try HEAD request to check if image exists
                     response = await client.head(image_url)
 
@@ -81,9 +90,18 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
                             await asyncio.sleep(2**attempt)  # Exponential backoff
                             continue
                         else:
-                            return f"ERRO_GERACAO_IMAGEM: Serviço sobrecarregado. Tente novamente em alguns momentos."
+                            return f"⚠️ Erro na geração de imagem: Serviço sobrecarregado. Tente novamente em alguns minutos."
+                    elif response.status_code >= 400:
+                        # Client or server error
+                        logger.error(
+                            f"Image generation failed with HTTP {response.status_code}"
+                        )
+                        if attempt == max_retries:
+                            return f"⚠️ Erro na geração de imagem: HTTP {response.status_code}"
+                        await asyncio.sleep(2**attempt)
+                        continue
                     else:
-                        # Other error, try GET request as fallback
+                        # Try GET request as fallback
                         get_response = await client.get(
                             image_url, follow_redirects=True
                         )
@@ -94,27 +112,32 @@ async def generate_image(prompt: str, width: int = 512, height: int = 512) -> st
                             continue
                         else:
                             logger.error(
-                                f"Image generation failed with status {response.status_code}"
+                                f"Image generation failed with status {get_response.status_code}"
                             )
-                            return f"ERRO_GERACAO_IMAGEM: Falha ao gerar imagem. Status: {response.status_code}"
+                            return f"⚠️ Erro na geração de imagem: HTTP {get_response.status_code}"
 
             except httpx.TimeoutException:
                 if attempt < max_retries:
                     await asyncio.sleep(2**attempt)
                     continue
                 else:
-                    return f"ERRO_GERACAO_IMAGEM: Timeout ao gerar imagem. Tente com uma descrição mais simples."
+                    return f"⚠️ Erro na geração de imagem: Timeout após {DEFAULT_TIMEOUT}s. Tente com uma descrição mais simples."
+            except httpx.ConnectError:
+                if attempt < max_retries:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                else:
+                    return f"⚠️ Erro na geração de imagem: Não foi possível conectar ao serviço."
             except Exception as e:
                 if attempt < max_retries:
                     await asyncio.sleep(2**attempt)
                     continue
                 else:
                     logger.error(f"Erro ao gerar imagem (tentativa {attempt + 1}): {e}")
-                    if attempt == max_retries:
-                        return f"ERRO_GERACAO_IMAGEM: Erro ao gerar imagem: {str(e)}"
+                    return f"⚠️ Erro na geração de imagem: {str(e)}"
 
-        return f"ERRO_GERACAO_IMAGEM: Falha ao gerar imagem após várias tentativas."
+        return f"⚠️ Erro na geração de imagem: Falha após várias tentativas."
 
     except Exception as e:
         logger.error(f"Erro inesperado ao gerar imagem: {e}")
-        return f"ERRO_GERACAO_IMAGEM: Erro inesperado: {str(e)}"
+        return f"⚠️ Erro na geração de imagem: {str(e)}"

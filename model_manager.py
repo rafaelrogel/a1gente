@@ -16,23 +16,18 @@ def switch_model(model_name: str) -> str:
     Switches the LLM model used by the agent.
     Valid options: llama3.2:3b, tinyllama, phi, smollm2, qwen2.5:1.5b, granite3.1-moe
     """
-    global MODEL_NAME
-    from config import MODEL_NAME
+    import config
 
     normalized = model_name.lower().strip()
 
     for model in AVAILABLE_MODELS:
         if model.lower() == normalized or model.lower().replace(":", "").replace(
-            "-", ""
+            "-"
         ) == normalized.replace(":", "").replace("-", ""):
-            from config import MODEL_NAME as current
-
-            if current == model:
+            if config.MODEL_NAME["value"] == model:
                 return f"Já estamos usando {model}."
 
-            import config
-
-            config.MODEL_NAME = model
+            config.MODEL_NAME["value"] = model
 
             from memory import clear_all_memory
 
@@ -47,9 +42,9 @@ def switch_model(model_name: str) -> str:
 
 
 def get_current_model() -> str:
-    from config import MODEL_NAME
+    import config
 
-    return MODEL_NAME
+    return config.MODEL_NAME["value"]
 
 
 def get_available_models() -> list:

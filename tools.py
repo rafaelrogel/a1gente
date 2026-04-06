@@ -8,18 +8,6 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "read_slack_message",
-            "description": "Reads the original message text. Use this first to process any user message.",
-            "parameters": {
-                "type": "object",
-                "properties": {"text": {"type": "string"}},
-                "required": ["text"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "write_blog_post",
             "description": "Creates a blog post in Markdown format with title and content sections.",
             "parameters": {
@@ -777,10 +765,6 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 💡 *Dica:* Seja específico para melhores resultados!"""
 
 
-async def read_slack_message(text: str) -> str:
-    return f"Mensagem lida: {text}"
-
-
 async def write_blog_post(title: str, content: str) -> str:
     blog_md = (
         f"# {title}\n\n{content}\n\n---\n*Post gerado automaticamente pelo Agente AI*"
@@ -803,18 +787,32 @@ async def web_search(query: str) -> str:
 
         return "RESULTADOS_REAIS:\n" + "\n---\n".join(results_text)
     except Exception as e:
+        from duckduckgo_search.exceptions import RatelimitException
+
+        if isinstance(e, RatelimitException):
+            logger.warning("Rate limit atingido no DuckDuckGo")
+            return "⚠️ Busca indisponível no momento."
         logger.error(f"Erro na pesquisa DuckDuckGo: {e}")
-        return f"⚠️ ERRO_PESQUISA: Erro ao pesquisar: {str(e)}"
+        return "⚠️ Busca indisponível no momento."
 
 
 async def summarize_text(text: str) -> str:
     return f"Resumo solicitado para: {text[:100]}..."
 
 
-async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
-    if name == "read_slack_message":
-        return await read_slack_message(**args)
-    elif name == "write_blog_post":
+async def execute_tool(name: str, args: Any, app=None) -> str:
+    import json
+
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except json.JSONDecodeError:
+            return f"⚠️ Argumentos inválidos para {name}."
+
+    if not isinstance(args, dict):
+        return f"⚠️ Argumentos inválidos para {name}."
+
+    if name == "write_blog_post":
         return await write_blog_post(**args)
     elif name == "fetch_webpage":
         from web_utils import fetch_webpage
@@ -823,9 +821,12 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     elif name == "summarize_text":
         return await summarize_text(**args)
     elif name == "reply_to_slack":
+        channel = args.get("channel")
+        if not channel:
+            return "⚠️ Erro: canal não especificado"
         if app:
             await app.client.chat_postMessage(
-                channel=args["channel"], text=str(args["message"])
+                channel=channel, text=str(args.get("message", ""))
             )
             return "Mensagem enviada com sucesso ao Slack."
         return "⚠️ Erro: app não disponível"
@@ -834,10 +835,21 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     elif name == "schedule_action":
         from agent import schedule_action
 
+        recurrence = args.get("recurrence")
+        channel = args.get("channel")
+
+        if not recurrence or not recurrence.strip():
+            return "⚠️ Erro: recorrência não especificada"
+
+        if not channel or not (channel.startswith("C") or channel.startswith("D")):
+            return "⚠️ Erro: canal inválido (deve começar com C ou D)"
+
         return await schedule_action(**args)
     elif name == "get_weather":
         from weather import get_weather
 
+        if "units" not in args:
+            args["units"] = "celsius"
         return await get_weather(**args)
     elif name == "translate_text":
         from translate import translate_text
@@ -860,14 +872,17 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
 
         return await delete_note(**args)
     elif name == "send_dm":
+        user_id = args.get("user_id")
+        if not user_id:
+            return "⚠️ Erro: user_id não especificado"
         if app:
             try:
-                result = await app.client.conversations_open(users=args["user_id"])
+                result = await app.client.conversations_open(users=user_id)
                 channel_id = result["channel"]["id"]
                 await app.client.chat_postMessage(
-                    channel=channel_id, text=str(args["message"])
+                    channel=channel_id, text=str(args.get("message", ""))
                 )
-                return f"Mensagem enviada para usuário {args['user_id']}"
+                return f"Mensagem enviada para usuário {user_id}"
             except Exception as e:
                 logger.error(f"Erro ao enviar DM: {e}")
                 return f"ERRO ao enviar DM: {str(e)}"
@@ -879,18 +894,28 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     elif name == "search_gif":
         from giphy import search_gif
 
+        if "limit" not in args:
+            args["limit"] = 5
         return await search_gif(**args)
     elif name == "get_github_activity":
         from github_tools import get_github_activity
 
+        if "days" not in args:
+            args["days"] = 7
         return await get_github_activity(**args)
     elif name == "scrape_reddit":
         from reddit_tools import scrape_reddit
 
+        if "sort" not in args:
+            args["sort"] = "hot"
+        if "limit" not in args:
+            args["limit"] = 10
         return await scrape_reddit(**args)
     elif name == "search_reddit":
         from reddit_tools import search_reddit
 
+        if "limit" not in args:
+            args["limit"] = 10
         return await search_reddit(**args)
     elif name == "switch_model":
         from model_manager import switch_model
@@ -909,6 +934,10 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     elif name == "generate_image":
         from image_gen import generate_image
 
+        if "width" not in args:
+            args["width"] = 512
+        if "height" not in args:
+            args["height"] = 512
         return await generate_image(**args)
     elif name == "run_sysadmin_command":
         from sysadmin_tools import run_sysadmin_command
@@ -925,6 +954,8 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
     elif name == "get_recent_logs":
         from sysadmin_tools import get_recent_logs
 
+        if "lines" not in args:
+            args["lines"] = 20
         return await get_recent_logs(**args)
     elif name == "get_git_status":
         from sysadmin_tools import get_git_status
@@ -1038,4 +1069,4 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
             return "✅ Busca automática de vagas desativada!"
         return "⚠️ Erro ao desativar busca automática."
     else:
-        return f"Erro: {name} não encontrada."
+        return f"⚠️ Ferramenta desconhecida: {name}"

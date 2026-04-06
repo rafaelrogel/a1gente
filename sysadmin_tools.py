@@ -9,28 +9,19 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 ALLOWED_COMMANDS = {
+    "ls": "List directory",
     "df": "Disk space usage",
-    "free": "Memory usage",
+    "du": "Directory size",
     "uptime": "System uptime and load",
-    "whoami": "Current user",
-    "hostname": "Server hostname",
-    "uname": "System information",
-    "date": "Current date and time",
-    "git": "Git status and logs",
-    "systemctl": "Service status",
+    "free": "Memory usage",
     "ps": "Process list",
     "top": "System activity",
-    "cat": "File content (read-only)",
-    "ls": "List directory",
-    "pwd": "Current directory",
-    "wc": "Word/line count",
-    "head": "First lines of file",
-    "tail": "Last lines of file",
-    "du": "Directory size",
-    "nproc": "CPU cores count",
-    "lscpu": "CPU information",
+    "git": "Git status and logs",
+    "systemctl": "Service status",
     "journalctl": "System logs (read-only)",
 }
+
+MAX_OUTPUT_SIZE = 3000
 
 DANGEROUS_PATTERNS = [
     "rm -rf",
@@ -119,9 +110,13 @@ def is_command_safe(command: str) -> tuple[bool, str]:
 
 
 async def run_sysadmin_command(command: str) -> str:
-    safe, reason = is_command_safe(command)
-    if not safe:
-        return f"ERRO_SEGURANCA: {reason}"
+    for pattern in DANGEROUS_PATTERNS:
+        if pattern in command.lower():
+            return f"⛔ Comando não permitido."
+
+    base_cmd = command.split()[0] if command.split() else ""
+    if base_cmd not in ALLOWED_COMMANDS:
+        return f"⛔ Comando não permitido."
 
     try:
         result = subprocess.run(
@@ -136,12 +131,12 @@ async def run_sysadmin_command(command: str) -> str:
         error = result.stderr.strip()
 
         if result.returncode != 0:
-            return f"ERRO_COMANDO (exit {result.returncode}):\n{error[:500] if error else 'Sem detalhes'}"
+            return f"ERRO_COMANDO (exit {result.returncode}):\n{error[:MAX_OUTPUT_SIZE] if error else 'Sem detalhes'}"
 
         if not output:
             return "Comando executado com sucesso, mas sem saída."
 
-        return f"COMANDO_EXECUTADO: {command}\n\nSAIDA:\n{output[:2000]}"
+        return f"COMANDO_EXECUTADO: {command}\n\nSAIDA:\n{output[:MAX_OUTPUT_SIZE]}"
 
     except subprocess.TimeoutExpired:
         return f"ERRO_TIMEOUT: Comando '{command}' excedeu 30 segundos"
@@ -151,6 +146,11 @@ async def run_sysadmin_command(command: str) -> str:
 
 
 async def get_system_status() -> str:
+    try:
+        import psutil
+    except ImportError:
+        pass
+
     try:
         commands = {
             "hostname": "hostname",
@@ -200,10 +200,12 @@ async def get_service_status(service_name: str) -> str:
         output = result.stdout.strip()
 
         if result.returncode != 0:
-            return f"ERRO: Servico '{service_name}' nao encontrado ou com erro:\n{result.stderr.strip()[:500]}"
+            return f"ERRO: Servico '{service_name}' nao encontrado ou com erro:\n{result.stderr.strip()[:MAX_OUTPUT_SIZE]}"
 
-        return f"STATUS DO SERVICO '{service_name}':\n{output[:1000]}"
+        return f"STATUS DO SERVICO '{service_name}':\n{output[:MAX_OUTPUT_SIZE]}"
 
+    except FileNotFoundError:
+        return "⚠️ systemctl não disponível neste sistema."
     except subprocess.TimeoutExpired:
         return f"ERRO_TIMEOUT: Status do servico '{service_name}' excedeu 10 segundos"
     except Exception as e:
@@ -224,14 +226,18 @@ async def get_recent_logs(lines: int = 20) -> str:
         )
 
         if result.returncode != 0:
-            return f"ERRO: Falha ao obter logs:\n{result.stderr.strip()[:500]}"
+            return (
+                f"ERRO: Falha ao obter logs:\n{result.stderr.strip()[:MAX_OUTPUT_SIZE]}"
+            )
 
         output = result.stdout.strip()
         if not output:
             return "Nenhum log encontrado para o servico a1gente."
 
-        return f"ULTIMOS {safe_lines} LOGS DO A1GENTE:\n{output[:3000]}"
+        return f"ULTIMOS {safe_lines} LOGS DO A1GENTE:\n{output[:MAX_OUTPUT_SIZE]}"
 
+    except FileNotFoundError:
+        return "⚠️ journalctl não disponível neste sistema."
     except subprocess.TimeoutExpired:
         return f"ERRO_TIMEOUT: Obtencao de logs excedeu 15 segundos"
     except Exception as e:
