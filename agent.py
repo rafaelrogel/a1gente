@@ -125,7 +125,8 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
             try:
                 res = await execute_tool(fn, args, app=app)
             except Exception as e:
-                res = f"Erro {fn}: {str(e)}"
+                res = f"⚠️ Erro ao executar {fn}: {str(e)}"
+                await app.client.chat_postMessage(channel=channel_id, text=res)
 
             update_memory(channel_id, "tool", str(res), max_memory=MAX_MEMORY)
 

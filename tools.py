@@ -799,12 +799,12 @@ async def web_search(query: str) -> str:
                 )
 
         if not results_text:
-            return "NENHUM_RESULTADO: Nenhum resultado encontrado para a pesquisa."
+            return "⚠️ NENHUM_RESULTADO: Nenhum resultado encontrado para a pesquisa."
 
         return "RESULTADOS_REAIS:\n" + "\n---\n".join(results_text)
     except Exception as e:
         logger.error(f"Erro na pesquisa DuckDuckGo: {e}")
-        return f"ERRO_PESQUISA: Erro ao pesquisar: {str(e)}"
+        return f"⚠️ ERRO_PESQUISA: Erro ao pesquisar: {str(e)}"
 
 
 async def summarize_text(text: str) -> str:
@@ -828,7 +828,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
                 channel=args["channel"], text=str(args["message"])
             )
             return "Mensagem enviada com sucesso ao Slack."
-        return "Erro: app não disponível"
+        return "⚠️ Erro: app não disponível"
     elif name == "web_search":
         return await web_search(**args)
     elif name == "schedule_action":
@@ -871,7 +871,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
             except Exception as e:
                 logger.error(f"Erro ao enviar DM: {e}")
                 return f"ERRO ao enviar DM: {str(e)}"
-        return "Erro: app não disponível"
+        return "⚠️ Erro: app não disponível"
     elif name == "set_reminder":
         from reminders import set_reminder
 
@@ -936,7 +936,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         result = store_user_preference(**args)
         if result:
             return f"Preferencia armazenada com sucesso: {args.get('key')} = {args.get('value')}"
-        return "Erro ao armazenar preferencia."
+        return "⚠️ Erro ao armazenar preferencia."
     elif name == "get_user_preference":
         from long_term_memory import get_user_preference
 
@@ -954,7 +954,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         )
         if result:
             return f"Fato importante armazenado: {args.get('fact')[:100]}"
-        return "Erro ao armazenar fato."
+        return "⚠️ Erro ao armazenar fato."
     elif name == "search_important_facts":
         from long_term_memory import search_important_facts
 
@@ -975,7 +975,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         )
         if task:
             return f"Relatorio agendado com sucesso!\n• Tipo: {task.get('report_type')}\n• Canal: {task.get('channel')}\n• Horario: {task.get('recurrence')}"
-        return "Erro ao agendar relatorio."
+        return "⚠️ Erro ao agendar relatorio."
     elif name == "list_available_reports":
         from scheduler import get_available_reports
 
@@ -1014,7 +1014,7 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         result = mark_applied(args.get("job_id"))
         if result:
             return f"Vaga {args.get('job_id')} marcada como candidatada!"
-        return f"Erro: vaga nao encontrada."
+        return "⚠️ Erro: vaga nao encontrada."
     elif name == "get_job_stats":
         from job_scout import get_stats, format_stats_message
 
@@ -1029,13 +1029,13 @@ async def execute_tool(name: str, args: Dict[str, Any], app=None) -> str:
         task = add_job_scout_task(run_scheduled_task, interval)
         if task:
             return f"✅ Busca automática de vagas ativada!\n• Intervalo: a cada {interval} horas\n• Canal: #A1brella (quando configurado)"
-        return "Erro ao ativar busca automática."
+        return "⚠️ Erro ao ativar busca automática."
     elif name == "disable_auto_job_scout":
         from scheduler import remove_job_scout_task
 
         result = remove_job_scout_task()
         if result:
             return "✅ Busca automática de vagas desativada!"
-        return "Erro ao desativar busca automática."
+        return "⚠️ Erro ao desativar busca automática."
     else:
         return f"Erro: {name} não encontrada."
