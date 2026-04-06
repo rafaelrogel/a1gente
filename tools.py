@@ -831,6 +831,8 @@ async def execute_tool(name: str, args: Any, app=None) -> str:
             return "Mensagem enviada com sucesso ao Slack."
         return "⚠️ Erro: app não disponível"
     elif name == "web_search":
+        if not args.get("query"):
+            return "⚠️ Erro: query não especificada para web_search"
         return await web_search(**args)
     elif name == "schedule_action":
         from agent import schedule_action
