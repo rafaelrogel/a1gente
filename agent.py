@@ -196,6 +196,15 @@ async def handle_messages(event, say):
         if text:
             user_id = event.get("user")
             await run_agent(event.get("channel"), text, user_id=user_id)
+    elif event.get("channel_type") == "channel":
+        if event.get("bot_id"):
+            return
+        text = event.get("text", "")
+        if f"<@{SLACK_BOT_USER_ID}>" in text:
+            clean_text = text.replace(f"<@{SLACK_BOT_USER_ID}>", "").strip()
+            if clean_text:
+                user_id = event.get("user")
+                await run_agent(event.get("channel"), clean_text, user_id=user_id)
 
 
 async def main():
