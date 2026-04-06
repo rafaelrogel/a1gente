@@ -675,6 +675,171 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "post_tweet",
+            "description": "Post a tweet on Twitter/X. Maximum 280 characters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "The tweet content (max 280 chars).",
+                    },
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_tweet",
+            "description": "Get details of a specific tweet by ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tweet_id": {
+                        "type": "string",
+                        "description": "The tweet ID to retrieve.",
+                    },
+                },
+                "required": ["tweet_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_tweets",
+            "description": "Search for tweets containing a query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'AI news', '#python').",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return (default 10, max 100).",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_timeline",
+            "description": "Get recent tweets from a user's timeline.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Twitter username (without @).",
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Number of tweets to retrieve (default 10, max 100).",
+                    },
+                },
+                "required": ["username"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_twitter_user_info",
+            "description": "Get information about a Twitter user.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Twitter username (without @).",
+                    },
+                },
+                "required": ["username"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "like_tweet",
+            "description": "Like a tweet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tweet_id": {
+                        "type": "string",
+                        "description": "The tweet ID to like.",
+                    },
+                },
+                "required": ["tweet_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "retweet",
+            "description": "Retweet a tweet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tweet_id": {
+                        "type": "string",
+                        "description": "The tweet ID to retweet.",
+                    },
+                },
+                "required": ["tweet_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "reply_to_tweet",
+            "description": "Reply to a tweet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tweet_id": {
+                        "type": "string",
+                        "description": "The tweet ID to reply to.",
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Reply text (max 280 chars).",
+                    },
+                },
+                "required": ["tweet_id", "text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_tweet",
+            "description": "Delete a tweet (must be your own).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tweet_id": {
+                        "type": "string",
+                        "description": "The tweet ID to delete.",
+                    },
+                },
+                "required": ["tweet_id"],
+            },
+        },
+    },
 ]
 
 
@@ -759,6 +924,15 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 • `estatísticas de vagas` - Ver estatísticas do banco de vagas
 • `ative busca automática de vagas` - Ativar busca a cada 6h
 • `desative busca automática de vagas` - Desativar busca automática
+
+🐦 *TWITTER/X*
+• `poste no twitter: [texto]` - Postar tweet (máx 280 caracteres)
+• `busque tweets: [termo]` - Buscar tweets
+• `timeline de @[usuario]` - Ver timeline de usuário
+• `info do twitter @[usuario]` - Ver informações do perfil
+• `curta tweet [id]` - Curtir um tweet
+• `retweet [id]` - Retweetar
+• `responda tweet [id]: [texto]` - Responder a tweet
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1070,5 +1244,45 @@ async def execute_tool(name: str, args: Any, app=None) -> str:
         if result:
             return "✅ Busca automática de vagas desativada!"
         return "⚠️ Erro ao desativar busca automática."
+    elif name == "post_tweet":
+        from twitter_tools import post_tweet
+
+        return await post_tweet(**args)
+    elif name == "get_tweet":
+        from twitter_tools import get_tweet
+
+        return await get_tweet(**args)
+    elif name == "search_tweets":
+        from twitter_tools import search_tweets
+
+        if "max_results" not in args:
+            args["max_results"] = 10
+        return await search_tweets(**args)
+    elif name == "get_user_timeline":
+        from twitter_tools import get_user_timeline
+
+        if "count" not in args:
+            args["count"] = 10
+        return await get_user_timeline(**args)
+    elif name == "get_twitter_user_info":
+        from twitter_tools import get_user_info
+
+        return await get_user_info(**args)
+    elif name == "like_tweet":
+        from twitter_tools import like_tweet
+
+        return await like_tweet(**args)
+    elif name == "retweet":
+        from twitter_tools import retweet
+
+        return await retweet(**args)
+    elif name == "reply_to_tweet":
+        from twitter_tools import reply_to_tweet
+
+        return await reply_to_tweet(**args)
+    elif name == "delete_tweet":
+        from twitter_tools import delete_tweet
+
+        return await delete_tweet(**args)
     else:
         return f"⚠️ Ferramenta desconhecida: {name}"
