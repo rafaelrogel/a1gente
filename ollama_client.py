@@ -122,9 +122,11 @@ def get_model_for_complexity(
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     if tools:
+        # Prefer current model if it supports tools
         for profile in MODEL_PROFILES.values():
-            if profile.get("supports_tools") and profile["models"][0] != "tinyllama":
-                return profile["models"][0]
+            if profile.get("supports_tools") and current_model in profile["models"]:
+                return current_model
+        # Otherwise use llama3.2:3b as default for tools
         return "llama3.2:3b"
 
     if complexity == "fast":

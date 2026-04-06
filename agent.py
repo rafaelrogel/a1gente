@@ -18,6 +18,7 @@ from tools import TOOLS, execute_tool
 from scheduler import (
     scheduler,
     load_scheduled_tasks,
+    save_scheduled_tasks,
     add_task_to_scheduler,
     add_job_scout_task,
     is_job_scout_active,
@@ -119,6 +120,12 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         for tc in tool_calls:
             fn = tc["function"]["name"]
             args = tc["function"]["arguments"]
+            # Fix: handle args as string JSON
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except:
+                    args = {}
             logger.info(f"Ferramenta: {fn}")
 
             res = ""
@@ -153,7 +160,6 @@ async def run_scheduled_task(task: Dict[str, Any]):
 async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
     """Agenda uma ação recorrente."""
     from datetime import datetime
-    from scheduler import save_scheduled_tasks, add_task_to_scheduler
 
     try:
         tasks = load_scheduled_tasks()
@@ -202,15 +208,7 @@ async def handle_messages(event, say):
         if text:
             user_id = event.get("user")
             await run_agent(event.get("channel"), text, user_id=user_id)
-    elif event.get("channel_type") == "channel":
-        if event.get("bot_id"):
-            return
-        text = event.get("text", "")
-        if f"<@{SLACK_BOT_USER_ID}>" in text:
-            clean_text = text.replace(f"<@{SLACK_BOT_USER_ID}>", "").strip()
-            if clean_text:
-                user_id = event.get("user")
-                await run_agent(event.get("channel"), clean_text, user_id=user_id)
+    # Note: channel messages are handled by app_mention event, not here
 
 
 async def main():

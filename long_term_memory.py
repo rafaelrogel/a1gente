@@ -34,6 +34,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS important_facts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT DEFAULT 'global',
             fact TEXT NOT NULL,
             category TEXT NOT NULL DEFAULT 'general',
             source TEXT DEFAULT 'user',
@@ -152,7 +153,7 @@ def get_all_user_preferences(user_id: str) -> Dict[str, Any]:
 
 
 def store_important_fact(
-    fact: str, category: str = "general", source: str = "user"
+    fact: str, category: str = "general", source: str = "user", user_id: str = "global"
 ) -> bool:
     try:
         conn = get_connection()
@@ -161,10 +162,10 @@ def store_important_fact(
         now = datetime.now().isoformat()
         cursor.execute(
             """
-            INSERT INTO important_facts (fact, category, source, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO important_facts (user_id, fact, category, source, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
         """,
-            (fact, category, source, now, now),
+            (user_id, fact, category, source, now, now),
         )
 
         conn.commit()
@@ -186,12 +187,12 @@ def get_important_facts(
             # Filter by user_id if provided
             if category:
                 cursor.execute(
-                    "SELECT * FROM important_facts WHERE category = ? AND source = ? ORDER BY created_at DESC LIMIT ?",
+                    "SELECT * FROM important_facts WHERE category = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?",
                     (category, user_id, limit),
                 )
             else:
                 cursor.execute(
-                    "SELECT * FROM important_facts WHERE source = ? ORDER BY created_at DESC LIMIT ?",
+                    "SELECT * FROM important_facts WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
                     (user_id, limit),
                 )
         else:
