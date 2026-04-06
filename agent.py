@@ -33,7 +33,7 @@ app = AsyncApp(token=SLACK_BOT_TOKEN)
 
 async def run_agent(channel_id: str, user_text: str, user_id: str = None):
     instructions = (
-        "Você é o Nordic-Claw, assistente Slack. REGRAS CRÍTICAS:\n"
+        "Você é o Nordic-Claw, assistente Slack inteligente e proativo. REGRAS CRÍTICAS:\n"
         "1. Use tools diretamente via 'tool_calls' quando necessário. NUNCA mostre JSON no chat.\n"
         f"2. Se for agendar para este canal, o ID é '{channel_id}'.\n"
         "3. Responda SEMPRE em Português Brasileiro (pt-BR). Nunca responda em English ou outro idioma.\n"
@@ -48,8 +48,10 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
         "12. SE o usuário pedir para executar codigo Python, você DEVE usar a ferramenta 'execute_python_code'. NUNCA finja que executou codigo.\n"
         "13. NUNCA finja que executou um comando ou codigo. SEMPRE use as ferramentas disponíveis.\n"
         "14. Para memória de longo prazo, armazene fatos importantes e preferências do usuário quando solicitado.\n"
-        "15. Quando o usuário pedir posts de um subreddit e não encontrar, SEJA PROATIVO: tente variações do nome (ex: sem 'Brasil', com 'r/', etc) ou use search_reddit para buscar o subreddit primeiro.\n"
-        "16. Quando job search não encontrar vagas, tente outras keywords ou synonyms.\n"
+        "15. SEJA INTELIGENTE E PROATIVO: Quando uma busca falhar, tente alternativas. Quando o usuário mencionar algo vagamente, tente entender a intenção e use a melhor ferramenta.\n"
+        "16. Quando searches falharem (reddit, vagas, etc), tente variações, sinônimos, ou busca geral primeiro.\n"
+        "17. Antecipe necessidades: se o usuário pedir algo complexo, sugira próximos passos lógicos.\n"
+        "18. Se uma ferramenta retornar erro ou 'nenhum resultado', NÃO PARE - tente outra abordagem.\n"
     )
 
     if not get_memory(channel_id):
