@@ -47,6 +47,12 @@ OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 GIPHY_API_KEY = os.environ.get("GIPHY_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = (
+    os.environ.get("OPENROUTER_MODEL") or "meta-llama/llama-3.1-8b-instruct:free"
+)
+USE_OPENROUTER = os.environ.get("USE_OPENROUTER", "false").lower() == "true"
+
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET")
 TWITTER_ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
@@ -111,6 +117,10 @@ def log_config_warnings():
     if not TWITTER_BEARER_TOKEN:
         logger.warning(
             "⚠️ Config: TWITTER_BEARER_TOKEN não está definido. Funções do Twitter podem falhar."
+        )
+    if USE_OPENROUTER and not OPENROUTER_API_KEY:
+        logger.warning(
+            "⚠️ Config: USE_OPENROUTER=true mas OPENROUTER_API_KEY não está definido."
         )
 
 
