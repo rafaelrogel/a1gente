@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_PROFILES = {
     "fast": {
-        "models": ["tinyllama", "granite3.1-moe"],
+        "models": ["tinyllama"],
         "description": "Modelo rapido para tarefas simples",
         "supports_tools": False,
         "use_cases": [
@@ -22,7 +22,7 @@ MODEL_PROFILES = {
         ],
     },
     "smart": {
-        "models": ["llama3.2:3b", "qwen2.5:1.5b"],
+        "models": ["llama3.2:3b", "qwen2.5:1.5b", "granite3.1-moe"],
         "description": "Modelo inteligente para tarefas complexas",
         "supports_tools": True,
         "use_cases": [
