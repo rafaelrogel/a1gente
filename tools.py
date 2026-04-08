@@ -589,92 +589,6 @@ TOOLS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_jobs",
-            "description": "Busca ativamente vagas de emprego na internet usando DuckDuckGo e salva as que combinam com o perfil (score>=40). USE esta funcao quando o usuario pedir para buscar vagas. NAO diga que busca em banco de dados.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_jobs",
-            "description": "Lista vagas ja salvas no banco de dados local.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "description": "Filter by status: 'new' or 'applied'. Leave empty for all.",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Number of jobs to return (default: 10).",
-                    },
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "mark_job_applied",
-            "description": "Marks a job as applied by its job ID.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "job_id": {
-                        "type": "string",
-                        "description": "The job ID to mark as applied.",
-                    },
-                },
-                "required": ["job_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_job_stats",
-            "description": "Gets statistics about the job scout database (total, new, applied, average score).",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "enable_auto_job_scout",
-            "description": "Ativa a busca automatica de vagas a cada 6 horas. USE esta funcao quando o usuario pedir para ativar busca automatica de vagas.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "hours": {
-                        "type": "integer",
-                        "description": "Intervalo em horas entre buscas (padrao: 6).",
-                    },
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "disable_auto_job_scout",
-            "description": "Disables automatic job searching.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-    },
 ]
 
 
@@ -751,14 +665,6 @@ Aqui estão todas as minhas funcionalidades e como me usar:
 💬 *OUTROS*
 • `crie um post de blog: título [X], conteúdo [Y]`
 • `envie DM para [user_id]: [mensagem]`
-
-🔎 *BUSCA DE VAGAS*
-• `busque vagas` - Buscar novas vagas automaticamente
-• `liste vagas` - Listar vagas salvas (use 'new' ou 'applied')
-• `candidate-se a vaga [job_id]` - Marcar vaga como candidatada
-• `estatísticas de vagas` - Ver estatísticas do banco de vagas
-• `ative busca automática de vagas` - Ativar busca a cada 6h
-• `desative busca automática de vagas` - Desativar busca automática
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1023,52 +929,5 @@ async def execute_tool(name: str, args: Any, app=None) -> str:
         from sysadmin_tools import execute_python_code
 
         return await execute_python_code(**args)
-    elif name == "search_jobs":
-        from job_scout import search_jobs_and_score, format_job_message
-
-        jobs = await search_jobs_and_score()
-        if not jobs:
-            return "Nenhuma nova vaga encontrada."
-
-        msg = f"🔔 {len(jobs)} nova(s) vaga(s):\n"
-        for job in jobs[:5]:
-            msg += (
-                f"• {job['title'][:40]} ({job['score']}pts) - {job['company'][:20]}\n"
-            )
-        return msg
-    elif name == "list_jobs":
-        from job_scout import get_jobs, format_jobs_list
-
-        jobs = get_jobs(args.get("status"), args.get("limit", 10))
-        return format_jobs_list(jobs)
-    elif name == "mark_job_applied":
-        from job_scout import mark_applied
-
-        result = mark_applied(args.get("job_id"))
-        if result:
-            return f"Vaga {args.get('job_id')} marcada como candidatada!"
-        return "⚠️ Erro: vaga nao encontrada."
-    elif name == "get_job_stats":
-        from job_scout import get_stats, format_stats_message
-
-        stats = get_stats()
-        return format_stats_message(stats)
-    elif name == "enable_auto_job_scout":
-        from scheduler import add_job_scout_task
-        from agent import run_scheduled_task
-
-        interval = args.get("hours", 6)
-        interval = max(1, min(24, interval))
-        task = add_job_scout_task(run_scheduled_task, interval)
-        if task:
-            return f"✅ Busca automática de vagas ativada!\n• Intervalo: a cada {interval} horas\n• Canal: #A1brella (quando configurado)"
-        return "⚠️ Erro ao ativar busca automática."
-    elif name == "disable_auto_job_scout":
-        from scheduler import remove_job_scout_task
-
-        result = remove_job_scout_task()
-        if result:
-            return "✅ Busca automática de vagas desativada!"
-        return "⚠️ Erro ao desativar busca automática."
     else:
         return f"⚠️ Ferramenta desconhecida: {name}"
