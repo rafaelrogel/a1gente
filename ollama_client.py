@@ -3,14 +3,7 @@ import logging
 import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from config import (
-    OLLAMA_URL,
-    MODEL_NAME,
-    OLLAMA_NUM_CTX,
-    OLLAMA_TIMEOUT,
-    USE_OPENROUTER,
-    OPENROUTER_API_KEY,
-)
+from config import OLLAMA_URL, MODEL_NAME, OLLAMA_NUM_CTX, OLLAMA_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +22,7 @@ MODEL_PROFILES = {
         ],
     },
     "smart": {
-        "models": ["llama3.2:3b", "qwen2.5:1.5b", "granite3.1-moe"],
+        "models": ["qwen2.5:1.5b", "llama3.2:3b", "granite3.1-moe"],
         "description": "Modelo inteligente para tarefas complexas",
         "supports_tools": True,
         "use_cases": [
@@ -152,12 +145,6 @@ async def call_ollama(
     model: Optional[str] = None,
     smart_routing: bool = True,
 ) -> Dict[str, Any]:
-    if USE_OPENROUTER and OPENROUTER_API_KEY:
-        from openrouter_client import call_openrouter
-
-        logger.info("Using OpenRouter backend")
-        return await call_openrouter(messages, tools, model)
-
     if model is None:
         model = MODEL_NAME["value"]
 
