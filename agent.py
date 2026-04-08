@@ -207,6 +207,59 @@ async def run_scheduled_task(task: Dict[str, Any]):
             )
             return
 
+    if "vaga" in prompt_lower or "job" in prompt_lower or "emprego" in prompt_lower:
+        logger.info("Detectada tarefa de vagas - buscando diretamente")
+        try:
+            search_terms = [
+                "Portuguese translation remote jobs",
+                "UX designer remote jobs Brazil",
+                "translation project manager remote",
+                "Brazilian Portuguese translator remote",
+            ]
+
+            all_results = []
+            with DDGS() as ddgs:
+                for term in search_terms:
+                    results = ddgs.text(term, max_results=5)
+                    for r in results:
+                        all_results.append(
+                            {
+                                "title": r["title"],
+                                "url": r["href"],
+                                "body": r["body"][:200],
+                            }
+                        )
+
+            jobs_file = "/tmp/jobs_cache.txt"
+            formatted_jobs = f"💼 *Vagas Remotas - {date_prefix}*\n\n"
+            formatted_jobs += (
+                "🔍 *Buscas:*\n• Tradução PT-BR\n• UX Design\n• Translation PM\n\n"
+            )
+
+            seen_urls = set()
+            for i, r in enumerate(all_results[:15], 1):
+                if r["url"] in seen_urls:
+                    continue
+                seen_urls.add(r["url"])
+                formatted_jobs += f"{i}. **{r['title'][:80]}**\n   🔗 {r['url']}\n\n"
+
+            with open(jobs_file, "w", encoding="utf-8") as f:
+                f.write(formatted_jobs)
+
+            logger.info(f"Vagas salvas em {jobs_file}")
+
+            await app.client.chat_postMessage(
+                channel=channel, text=formatted_jobs[:3500]
+            )
+            logger.info(f"Vagas postadas no canal {channel}")
+            return
+        except Exception as e:
+            logger.error(f"Erro ao buscar vagas: {e}")
+            await app.client.chat_postMessage(
+                channel=channel, text=f"❌ Erro ao buscar vagas: {str(e)}"
+            )
+            return
+
     clear_memory(channel)
     await run_agent(channel, f"[{date_prefix}] {task['prompt']}")
 
