@@ -146,15 +146,54 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
 
 async def run_scheduled_task(task: Dict[str, Any]):
     from datetime import datetime
+    from duckduckgo_search import DDGS
 
     logger.info(f"Executando tarefa agendada: {task['prompt']}")
 
     now = datetime.now()
     date_prefix = now.strftime("%d/%m/%Y às %H:%M")
+    channel = task["channel"]
 
-    clear_memory(task["channel"])
+    prompt_lower = task["prompt"].lower()
 
-    await run_agent(task["channel"], f"[{date_prefix}] {task['prompt']}")
+    if (
+        "notícia" in prompt_lower
+        or "news" in prompt_lower
+        or "pesquisa sobre" in prompt_lower
+    ):
+        logger.info("Detectada tarefa de notícias - buscando diretamente")
+        try:
+            search_query = "AI LLMs Vibecoding news 2024"
+            results_text = []
+            with DDGS() as ddgs:
+                results = ddgs.text(search_query, max_results=10)
+                for r in results:
+                    results_text.append(
+                        f"TITULO: {r['title']}\nURL: {r['href']}\nDESCRICAO: {r['body']}"
+                    )
+
+            if not results_text:
+                msg = f"📰 *Notícias AI/LLMs - {date_prefix}*\n\nNenhuma notícia encontrada hoje."
+            else:
+                msg = f"📰 *Notícias AI/LLMs/Vibecoding - {date_prefix}*\n\n"
+                for i, result in enumerate(results_text[:10], 1):
+                    lines = result.split("\n")
+                    title = lines[0].replace("TITULO: ", "") if len(lines) > 0 else ""
+                    url = lines[1].replace("URL: ", "") if len(lines) > 1 else ""
+                    msg += f"{i}. [{title[:60]}]({url})\n"
+
+            await app.client.chat_postMessage(channel=channel, text=msg)
+            logger.info(f"Notícias postadas no canal {channel}")
+            return
+        except Exception as e:
+            logger.error(f"Erro ao buscar notícias: {e}")
+            await app.client.chat_postMessage(
+                channel=channel, text=f"❌ Erro ao buscar notícias: {str(e)}"
+            )
+            return
+
+    clear_memory(channel)
+    await run_agent(channel, f"[{date_prefix}] {task['prompt']}")
 
 
 async def schedule_action(prompt: str, recurrence: str, channel: str) -> str:
