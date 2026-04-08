@@ -147,6 +147,7 @@ async def run_agent(channel_id: str, user_text: str, user_id: str = None):
 async def run_scheduled_task(task: Dict[str, Any]):
     from datetime import datetime
     from duckduckgo_search import DDGS
+    import json
 
     logger.info(f"Executando tarefa agendada: {task['prompt']}")
 
@@ -161,28 +162,42 @@ async def run_scheduled_task(task: Dict[str, Any]):
         or "news" in prompt_lower
         or "pesquisa sobre" in prompt_lower
     ):
-        logger.info("Detectada tarefa de notícias - buscando diretamente")
+        logger.info("Detectada tarefa de notícias - buscando e salvando em arquivo")
         try:
-            search_query = "AI LLMs Vibecoding news 2024"
-            results_text = []
+            search_terms = ["AI news", "LLM developments", "Vibecoding"]
+
+            all_results = []
             with DDGS() as ddgs:
-                results = ddgs.text(search_query, max_results=10)
-                for r in results:
-                    results_text.append(
-                        f"TITULO: {r['title']}\nURL: {r['href']}\nDESCRICAO: {r['body']}"
-                    )
+                for term in search_terms:
+                    results = ddgs.text(term, max_results=5)
+                    for r in results:
+                        all_results.append(
+                            {
+                                "title": r["title"],
+                                "url": r["href"],
+                                "body": r["body"][:200],
+                            }
+                        )
 
-            if not results_text:
-                msg = f"📰 *Notícias AI/LLMs - {date_prefix}*\n\nNenhuma notícia encontrada hoje."
-            else:
-                msg = f"📰 *Notícias AI/LLMs/Vibecoding - {date_prefix}*\n\n"
-                for i, result in enumerate(results_text[:10], 1):
-                    lines = result.split("\n")
-                    title = lines[0].replace("TITULO: ", "") if len(lines) > 0 else ""
-                    url = lines[1].replace("URL: ", "") if len(lines) > 1 else ""
-                    msg += f"{i}. [{title[:60]}]({url})\n"
+            news_file = "/tmp/ai_news_cache.txt"
+            formatted_news = f"📰 *Notícias AI/LLMs/Vibecoding - {date_prefix}*\n\n"
 
-            await app.client.chat_postMessage(channel=channel, text=msg)
+            seen_urls = set()
+            for i, r in enumerate(all_results[:15], 1):
+                if r["url"] in seen_urls:
+                    continue
+                seen_urls.add(r["url"])
+                formatted_news += f"{i}. **{r['title'][:80]}**\n   📎 {r['url']}\n   📝 {r['body']}\n\n"
+
+            with open(news_file, "w", encoding="utf-8") as f:
+                f.write(formatted_news)
+
+            logger.info(f"Notícias salvas em {news_file}")
+
+            with open(news_file, "r", encoding="utf-8") as f:
+                news_content = f.read()
+
+            await app.client.chat_postMessage(channel=channel, text=news_content[:3500])
             logger.info(f"Notícias postadas no canal {channel}")
             return
         except Exception as e:
