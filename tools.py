@@ -589,6 +589,60 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "schedule_search",
+            "description": "Agenda uma pesquisa automática diária. USE quando o usuário pedir para criar/agendar uma busca recorrente.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "search_terms": {
+                        "type": "string",
+                        "description": "Termos de busca separados por vírgula (ex: 'AI news, tecnologia, startups')",
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "Horário da busca (ex: '09:00', '14h30', '11:00')",
+                    },
+                    "channel": {
+                        "type": "string",
+                        "description": "Slack channel ID (ex: C0ANYSSN4BA)",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Título opcional para a pesquisa (ex: 'Notícias AI', 'Vagas Tradução')",
+                    },
+                },
+                "required": ["search_terms", "time"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_scheduled_searches",
+            "description": "Lista todas as pesquisas automáticas agendadas.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_scheduled_search",
+            "description": "Remove uma pesquisa automática agendada pelo ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID da tarefa a remover",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
 ]
 
 
@@ -929,5 +983,68 @@ async def execute_tool(name: str, args: Any, app=None) -> str:
         from sysadmin_tools import execute_python_code
 
         return await execute_python_code(**args)
+    elif name == "schedule_search":
+        import json
+        import re
+        from datetime import datetime
+        from scheduler import (
+            load_scheduled_tasks,
+            save_scheduled_tasks,
+            add_task_to_scheduler,
+        )
+        from agent import run_scheduled_task
+
+        search_terms = args.get("search_terms", "")
+        time_str = args.get("time", "09:00")
+        channel = args.get("channel", "C0ANYSSN4BA")
+        title = args.get("title", "Pesquisa agendada")
+
+        match = re.search(r"(\d{1,2})[h:](\d{1,2})?", time_str)
+        if not match:
+            return "⚠️ Formato de horário inválido. Use '09:00' ou '14h30'"
+        hour = int(match.group(1))
+        minute = int(match.group(2)) if match.group(2) else 0
+
+        task = {
+            "id": f"search_{int(datetime.now().timestamp())}",
+            "prompt": f"Pesquisar sobre: {search_terms}",
+            "recurrence": f"todo dia às {hour:02d}:{minute:02d}",
+            "channel": channel,
+            "search_terms": search_terms,
+            "title": title,
+            "created_at": datetime.now().isoformat(),
+        }
+
+        tasks = load_scheduled_tasks()
+        tasks.append(task)
+        save_scheduled_tasks(tasks)
+        add_task_to_scheduler(task, run_scheduled_task)
+
+        return f"✅ Pesquisa agendada!\n• Temas: {search_terms}\n• Horário: {hour:02d}:{minute:02d}\n• Canal: <#{channel}>\n• ID: {task['id']}"
+    elif name == "list_scheduled_searches":
+        from scheduler import load_scheduled_tasks
+
+        tasks = load_scheduled_tasks()
+        if not tasks:
+            return "Nenhuma pesquisa agendada."
+
+        msg = "📋 *Pesquisas Agendadas:*\n\n"
+        for t in tasks:
+            prompt = t.get("prompt", "")[:50]
+            recurrence = t.get("recurrence", "")
+            msg += f"• `{t['id']}` - {prompt} ({recurrence})\n"
+        return msg
+    elif name == "remove_scheduled_search":
+        from scheduler import load_scheduled_tasks, save_scheduled_tasks
+
+        task_id = args.get("task_id")
+        tasks = load_scheduled_tasks()
+        original_count = len(tasks)
+        tasks = [t for t in tasks if t.get("id") != task_id]
+
+        if len(tasks) < original_count:
+            save_scheduled_tasks(tasks)
+            return f"✅ Pesquisa {task_id} removida!"
+        return f"⚠️ Pesquisa {task_id} não encontrada."
     else:
         return f"⚠️ Ferramenta desconhecida: {name}"
